@@ -1,8 +1,8 @@
 # @git-stunts/alfred
 
-> *"Why do we fall, Bruce? So we can learn to pick ourselves back up."*
+> *"Why do we fall, Bruce?"*
 >
-> (Though honestly, *"Why must we fall, Master Bruce?"* has a better ring to it.)
+> *"So we can `retry({ backoff: 'exponential', jitter: 'decorrelated' })`."*
 
 Production-grade resilience patterns for async operations. No Result types, no monads - just async/await with try/catch, the way nature intended.
 
