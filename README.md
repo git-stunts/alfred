@@ -1,0 +1,241 @@
+# @git-stunts/alfred
+
+> *"Why do we fall, Bruce? So we can learn to pick ourselves back up."*
+>
+> (Though honestly, *"Why must we fall, Master Bruce?"* has a better ring to it.)
+
+Production-grade resilience patterns for async operations. No Result types, no monads - just async/await with try/catch, the way nature intended.
+
+## Installation
+
+```bash
+npm install @git-stunts/alfred
+```
+
+## Quick Start
+
+```javascript
+import { retry, circuitBreaker, timeout, compose } from '@git-stunts/alfred';
+
+// Simple retry with exponential backoff
+const data = await retry(
+  () => fetch('https://api.example.com/data'),
+  { retries: 3, backoff: 'exponential', delay: 100 }
+);
+
+// Circuit breaker - fail fast when service is down
+const breaker = circuitBreaker({ threshold: 5, duration: 60000 });
+const result = await breaker.execute(() => callFlakeyService());
+
+// Compose multiple policies
+const resilient = compose(
+  timeout(5000),
+  retry({ retries: 3, backoff: 'exponential', jitter: 'full' }),
+  circuitBreaker({ threshold: 5, duration: 60000 })
+);
+
+await resilient.execute(() => riskyOperation());
+```
+
+## API
+
+### `retry(fn, options)`
+
+Retries a failed operation with configurable backoff.
+
+```javascript
+import { retry } from '@git-stunts/alfred';
+
+// Basic retry
+await retry(() => mightFail(), { retries: 3 });
+
+// Exponential backoff: 100ms, 200ms, 400ms, 800ms...
+await retry(() => mightFail(), {
+  retries: 5,
+  backoff: 'exponential',
+  delay: 100,
+  maxDelay: 10000
+});
+
+// Only retry specific errors
+await retry(() => mightFail(), {
+  retries: 3,
+  shouldRetry: (err) => err.code === 'ECONNREFUSED'
+});
+
+// With jitter to prevent thundering herd
+await retry(() => mightFail(), {
+  retries: 3,
+  backoff: 'exponential',
+  delay: 100,
+  jitter: 'full' // or 'equal' or 'decorrelated'
+});
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `retries` | `number` | `3` | Maximum retry attempts |
+| `delay` | `number` | `1000` | Base delay in milliseconds |
+| `maxDelay` | `number` | `30000` | Maximum delay cap |
+| `backoff` | `'constant' \| 'linear' \| 'exponential'` | `'constant'` | Backoff strategy |
+| `jitter` | `'none' \| 'full' \| 'equal' \| 'decorrelated'` | `'none'` | Jitter strategy |
+| `shouldRetry` | `(error) => boolean` | `() => true` | Predicate to filter retryable errors |
+| `onRetry` | `(error, attempt, delay) => void` | - | Callback on each retry |
+
+### `circuitBreaker(options)`
+
+Fails fast when a service is degraded, preventing cascade failures.
+
+```javascript
+import { circuitBreaker } from '@git-stunts/alfred';
+
+const breaker = circuitBreaker({
+  threshold: 5,      // Open after 5 failures
+  duration: 60000,   // Stay open for 60 seconds
+  onOpen: () => console.log('Circuit opened!'),
+  onClose: () => console.log('Circuit closed!'),
+  onHalfOpen: () => console.log('Testing recovery...')
+});
+
+// Circuit has three states:
+// - CLOSED: Normal operation, failures counted
+// - OPEN: All calls fail immediately with CircuitOpenError
+// - HALF_OPEN: One test call allowed to check recovery
+
+try {
+  await breaker.execute(() => callService());
+} catch (err) {
+  if (err.name === 'CircuitOpenError') {
+    console.log('Service is down, failing fast');
+  }
+}
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `threshold` | `number` | required | Failures before opening |
+| `duration` | `number` | required | How long to stay open (ms) |
+| `successThreshold` | `number` | `1` | Successes to close from half-open |
+| `shouldTrip` | `(error) => boolean` | `() => true` | Which errors count as failures |
+| `onOpen` | `() => void` | - | Called when circuit opens |
+| `onClose` | `() => void` | - | Called when circuit closes |
+| `onHalfOpen` | `() => void` | - | Called when entering half-open |
+
+### `timeout(ms, options)`
+
+Prevents operations from hanging indefinitely.
+
+```javascript
+import { timeout } from '@git-stunts/alfred';
+
+// Simple timeout
+const result = await timeout(5000, () => slowOperation());
+
+// With callback
+const result = await timeout(5000, () => slowOperation(), {
+  onTimeout: (elapsed) => console.log(`Timed out after ${elapsed}ms`)
+});
+```
+
+Throws `TimeoutError` if the operation exceeds the time limit.
+
+### `compose(...policies)`
+
+Combines multiple policies. Policies execute from left to right (outermost to innermost).
+
+```javascript
+import { compose, retry, circuitBreaker, timeout } from '@git-stunts/alfred';
+
+const resilient = compose(
+  timeout(30000),                                    // Total timeout
+  retry({ retries: 3, backoff: 'exponential' }),     // Retry failures
+  circuitBreaker({ threshold: 5, duration: 60000 }) // Fail fast if broken
+);
+
+// Execution order:
+// 1. Start 30s timeout
+// 2. Try operation (retry up to 3x on failure)
+// 3. Each attempt checks circuit breaker first
+await resilient.execute(() => riskyOperation());
+```
+
+## Testing
+
+Use `TestClock` for deterministic tests without real delays:
+
+```javascript
+import { retry, TestClock } from '@git-stunts/alfred/testing';
+
+test('retries with exponential backoff', async () => {
+  const clock = new TestClock();
+  let attempts = 0;
+
+  const operation = async () => {
+    attempts++;
+    if (attempts < 3) throw new Error('fail');
+    return 'success';
+  };
+
+  const promise = retry(operation, {
+    retries: 3,
+    backoff: 'exponential',
+    delay: 1000,
+    clock
+  });
+
+  // First attempt fails immediately
+  await clock.tick(0);
+  expect(attempts).toBe(1);
+
+  // Second attempt after 1s
+  await clock.advance(1000);
+  expect(attempts).toBe(2);
+
+  // Third attempt after 2s (exponential)
+  await clock.advance(2000);
+  expect(attempts).toBe(3);
+
+  expect(await promise).toBe('success');
+});
+```
+
+## Error Types
+
+```javascript
+import {
+  RetryExhaustedError,
+  CircuitOpenError,
+  TimeoutError
+} from '@git-stunts/alfred';
+
+try {
+  await resilientOperation();
+} catch (err) {
+  if (err instanceof RetryExhaustedError) {
+    console.log(`Failed after ${err.attempts} attempts`);
+    console.log(`Last error: ${err.cause.message}`);
+  } else if (err instanceof CircuitOpenError) {
+    console.log(`Circuit open since ${err.openedAt}`);
+  } else if (err instanceof TimeoutError) {
+    console.log(`Timed out after ${err.elapsed}ms`);
+  }
+}
+```
+
+## Philosophy
+
+Alfred is the anti-Result library. In JavaScript:
+
+- **Throwing is fast.** V8 optimizes try/catch as normal control flow.
+- **Result types allocate.** `{ ok: true, value }` creates garbage on every call.
+- **Async/await is ergonomic.** No `.map()`, `.andThen()`, `.unwrap()` chains.
+
+We took the battle-tested patterns from `@zerothrow/resilience` and rewrote them for the throw/catch world.
+
+## License
+
+Apache-2.0

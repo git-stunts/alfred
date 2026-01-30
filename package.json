@@ -1,0 +1,54 @@
+{
+  "name": "@git-stunts/alfred",
+  "version": "0.1.0",
+  "description": "Why do we fall, Bruce? Production-grade resilience patterns for async operations.",
+  "type": "module",
+  "main": "src/index.js",
+  "types": "./index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./index.d.ts",
+      "default": "./src/index.js"
+    },
+    "./testing": {
+      "types": "./index.d.ts",
+      "default": "./src/testing.js"
+    }
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint .",
+    "format": "prettier --write ."
+  },
+  "author": "James Ross <james@flyingrobots.dev>",
+  "license": "Apache-2.0",
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "vitest": "^2.1.8"
+  },
+  "files": [
+    "src",
+    "index.d.ts",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/git-stunts/alfred.git"
+  },
+  "keywords": [
+    "resilience",
+    "retry",
+    "circuit-breaker",
+    "timeout",
+    "fault-tolerance",
+    "async",
+    "batman"
+  ]
+}
