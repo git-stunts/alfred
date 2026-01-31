@@ -4,14 +4,14 @@
 "description": "Why do we fall, Bruce? Resilience patterns for async operations.",
   "type": "module",
   "main": "src/index.js",
-  "types": "./index.d.ts",
+  "types": "./src/index.d.ts",
   "exports": {
     ".": {
-      "types": "./index.d.ts",
+      "types": "./src/index.d.ts",
       "default": "./src/index.js"
     },
     "./testing": {
-      "types": "./index.d.ts",
+      "types": "./src/testing.d.ts",
       "default": "./src/testing.js"
     }
   },

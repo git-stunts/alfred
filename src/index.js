@@ -3,6 +3,8 @@
  * Exports all public APIs for building resilient applications.
  */
 
+// @ts-self-types="./index.d.ts"
+
 // Error types
 export { 
   RetryExhaustedError, 
