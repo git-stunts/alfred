@@ -220,11 +220,11 @@ await resilient.execute(() => riskyOperation());
 Alfred provides a composable telemetry system to monitor policy behavior.
 
 ```javascript
-import { 
-  Policy, 
-  ConsoleSink, 
-  InMemorySink, 
-  MultiSink 
+import {
+  Policy,
+  ConsoleSink,
+  InMemorySink,
+  MultiSink
 } from '@git-stunts/alfred';
 
 // 1. Create a sink (or multiple)
@@ -234,9 +234,9 @@ const sink = new MultiSink([
 ]);
 
 // 2. Attach to policies
-const policy = Policy.retry({ 
-  retries: 3, 
-  telemetry: sink 
+const policy = Policy.retry({
+  retries: 3,
+  telemetry: sink
 });
 
 // All policies emit events:
@@ -310,11 +310,14 @@ try {
 }
 ```
 
-
 ---
 
 ## License
 
-Apache-2.0 
+Apache-2.0 © 2026 by James Ross
 
-© 2026 James Ross
+---
+
+<p align="center">
+  <sub>Built by <a href="https://github.com/flyingrobots">FLYING•ROBOTS</a></sub>
+</p>
