@@ -1,5 +1,5 @@
 
-import { retry, circuitBreaker, timeout, compose, Policy } from '../src/index.js';
+import { retry, circuitBreaker, timeout, Policy } from '../src/index.js';
 
 const log = (msg) => console.log(`[SMOKE] ${msg}`);
 const assert = (condition, msg) => {
@@ -33,14 +33,14 @@ async function main() {
   try {
     await breaker.execute(() => Promise.reject(new Error('fail')));
     assert(false, 'Breaker should have thrown');
-  } catch (e) {
+  } catch {
     // Expected
   }
   
   try {
     await breaker.execute(() => Promise.reject(new Error('fail')));
     assert(false, 'Breaker should have thrown');
-  } catch (e) {
+  } catch {
     // Expected
   }
 

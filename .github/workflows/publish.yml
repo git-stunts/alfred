@@ -9,7 +9,7 @@ jobs:
   publish:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write # Required for creating releases
       id-token: write # Required for provenance
 
     steps:
@@ -28,6 +28,6 @@ jobs:
         run: npx jsr publish
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true

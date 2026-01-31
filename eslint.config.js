@@ -22,7 +22,8 @@ export default [
         AbortSignal: "readonly",
         performance: "readonly",
         global: "readonly",
-        DOMException: "readonly"
+        DOMException: "readonly",
+        Deno: "readonly"
       }
     },
     rules: {
