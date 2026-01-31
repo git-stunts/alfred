@@ -1,0 +1,21 @@
+{
+  "name": "@git-stunts/alfred",
+  "version": "0.2.0",
+  "exports": {
+    ".": "./src/index.js",
+    "./testing": "./src/testing.js"
+  },
+  "publish": {
+    "exclude": [
+      "!src/**/*.js",
+      "!index.d.ts",
+      "!README.md",
+      "!LICENSE",
+      "!CHANGELOG.md",
+      "node_modules",
+      "test",
+      "docker",
+      ".devcontainer"
+    ]
+  }
+}

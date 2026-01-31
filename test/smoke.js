@@ -1,5 +1,5 @@
 
-import { retry, circuitBreaker, timeout, compose, Policy } from './src/index.js';
+import { retry, circuitBreaker, timeout, compose, Policy } from '../src/index.js';
 
 const log = (msg) => console.log(`[SMOKE] ${msg}`);
 const assert = (condition, msg) => {

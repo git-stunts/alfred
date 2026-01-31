@@ -12,6 +12,15 @@ Resilience patterns for async operations. *Tuff 'nuff for most stuff!*
 npm install @git-stunts/alfred
 ```
 
+## Multi-Runtime Support
+
+Alfred is designed to be platform-agnostic and is tested against:
+- **Node.js** (>= 20.0.0)
+- **Bun** (>= 1.0.0)
+- **Deno** (>= 1.35.0)
+
+It uses standard Web APIs (AbortController, AbortSignal) and provides runtime-aware clock management to ensure clean process exits (unref) on all platforms.
+
 ## Quick Start
 
 ```javascript
