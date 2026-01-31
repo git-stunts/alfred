@@ -21,11 +21,11 @@ A JavaScript resilience library providing retry, circuit breaker, timeout, and c
 - [x] **Event hooks** - `onRetry`, `onCircuitStateChange` callbacks for monitoring
 - [x] **TypeScript definitions** - Ship `index.d.ts` for type safety
 
-## v0.3.0 - Adaptive Configuration
+## v0.3.0 - Adaptive & Hedge ("The Lucius Fox Upgrade")
 
-- [ ] **Adaptive\<T\> wrapper** - Live-updatable config without requiring rebuild
-- [ ] **Policy.update()** - Change policy settings at runtime
-- [ ] **Metrics integration** - Basic counters: attempts, failures, timeouts
+- [ ] **Adaptive Configuration** - Runtime-updatable config (e.g., dynamic timeouts/retries) via `Ref` or `Getter`.
+- [ ] **Hedge Policy** - Speculative execution to reduce tail latency (start second request if first is slow).
+- [ ] **Metrics Sink** - Aggregated stats (p95 latency, success rates) built on the telemetry system.
 
 ## v1.0.0 - Production Ready
 

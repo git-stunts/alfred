@@ -10,6 +10,7 @@
 import { BulkheadRejectedError } from '../errors.js';
 import { SystemClock } from '../utils/clock.js';
 import { NoopSink } from '../telemetry.js';
+import { resolve } from '../utils/resolvable.js';
 
 /**
  * @typedef {Object} BulkheadOptions
@@ -49,8 +50,9 @@ class BulkheadPolicy {
   }
 
   processQueue() {
-    if (this.active < this.limit && this.queue.length > 0) {
-      const { fn, resolve, reject } = this.queue.shift();
+    const limit = resolve(this.limit);
+    if (this.active < limit && this.queue.length > 0) {
+      const { fn, resolve: promiseResolve, reject } = this.queue.shift();
       this.active++;
       
       this.emitEvent('bulkhead.execute', {
@@ -60,7 +62,7 @@ class BulkheadPolicy {
 
       Promise.resolve()
         .then(() => fn())
-        .then(resolve, reject)
+        .then(promiseResolve, reject)
         .finally(() => {
           this.active--;
           this.emitEvent('bulkhead.complete', {
@@ -81,7 +83,10 @@ class BulkheadPolicy {
   }
 
   async execute(fn) {
-    if (this.active < this.limit) {
+    const limit = resolve(this.limit);
+    const queueLimit = resolve(this.queueLimit);
+
+    if (this.active < limit) {
       this.active++;
       this.emitEvent('bulkhead.execute', {
         active: this.active,
@@ -100,7 +105,7 @@ class BulkheadPolicy {
       }
     }
 
-    if (this.queue.length < this.queueLimit) {
+    if (this.queue.length < queueLimit) {
       this.emitEvent('bulkhead.queued', {
         active: this.active,
         pending: this.queue.length + 1
@@ -115,14 +120,14 @@ class BulkheadPolicy {
       active: this.active,
       pending: this.queue.length
     });
-    throw new BulkheadRejectedError(this.limit, this.queueLimit);
+    throw new BulkheadRejectedError(limit, queueLimit);
   }
 
   get stats() {
     return { 
       active: this.active, 
       pending: this.queue.length, 
-      available: Math.max(0, this.limit - this.active) 
+      available: Math.max(0, resolve(this.limit) - this.active) 
     };
   }
 }

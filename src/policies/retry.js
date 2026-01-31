@@ -11,6 +11,7 @@ import { SystemClock } from '../utils/clock.js';
 import { createJitter } from '../utils/jitter.js';
 import { RetryExhaustedError } from '../errors.js';
 import { NoopSink } from '../telemetry.js';
+import { resolve } from '../utils/resolvable.js';
 
 /**
  * @typedef {'constant' | 'linear' | 'exponential'} BackoffStrategy
@@ -59,34 +60,38 @@ class RetryExecutor {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.clock = options.clock || new SystemClock();
     this.telemetry = options.telemetry || new NoopSink();
-    this.applyJitter = createJitter(this.options.jitter);
-    this.prevDelay = this.options.delay;
+    // this.applyJitter is now created dynamically in calculateDelay
+    this.prevDelay = resolve(this.options.delay);
   }
 
   calculateDelay(attempt) {
-    const { backoff, delay: baseDelay, maxDelay, jitter } = this.options;
+    const backoff = resolve(this.options.backoff);
+    const baseDelay = resolve(this.options.delay);
+    const maxDelay = resolve(this.options.maxDelay);
+    const jitter = resolve(this.options.jitter);
+
     const rawDelay = calculateBackoff(backoff, baseDelay, attempt);
+    const applyJitter = createJitter(jitter);
 
     if (jitter === 'decorrelated') {
-      const actual = this.applyJitter(baseDelay, this.prevDelay, maxDelay);
+      const actual = applyJitter(baseDelay, this.prevDelay, maxDelay);
       this.prevDelay = actual;
       return actual;
     }
     
-    return Math.min(this.applyJitter(rawDelay), maxDelay);
+    return Math.min(applyJitter(rawDelay), maxDelay);
   }
 
   async execute() {
-    const totalAttempts = this.options.retries + 1;
-
-    for (let attempt = 1; attempt <= totalAttempts; attempt++) {
-      const shouldStop = await this.tryAttempt(attempt, totalAttempts);
+    // Loop condition: attempt <= (current_retries + 1)
+    // We start at 1.
+    for (let attempt = 1; attempt <= resolve(this.options.retries) + 1; attempt++) {
+      const shouldStop = await this.tryAttempt(attempt);
       if (shouldStop) {
         return shouldStop.result;
       }
     }
     
-    // Should be unreachable if logic is correct, but satisfied strict returns
     throw new Error('Unexpected retry loop termination');
   }
 
@@ -144,7 +149,7 @@ class RetryExecutor {
       throw error;
     }
 
-    const totalAttempts = this.options.retries + 1;
+    const totalAttempts = resolve(this.options.retries) + 1;
     if (attempt >= totalAttempts) {
       this.telemetry.emit({
         type: 'retry.exhausted',

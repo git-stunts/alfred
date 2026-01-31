@@ -18,6 +18,7 @@ export { retry } from './policies/retry.js';
 export { circuitBreaker } from './policies/circuit-breaker.js';
 export { timeout } from './policies/timeout.js';
 export { bulkhead } from './policies/bulkhead.js';
+export { hedge } from './policies/hedge.js';
 
 // Composition utilities
 export { compose, fallback, race } from './compose.js';

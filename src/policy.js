@@ -34,6 +34,7 @@ import { retry } from './policies/retry.js';
 import { circuitBreaker } from './policies/circuit-breaker.js';
 import { timeout } from './policies/timeout.js';
 import { bulkhead } from './policies/bulkhead.js';
+import { hedge } from './policies/hedge.js';
 import { compose, fallback, race } from './compose.js';
 
 /**
@@ -132,6 +133,17 @@ export class Policy {
   static bulkhead(options) {
     const limiter = bulkhead(options);
     return new Policy((fn) => limiter.execute(fn));
+  }
+
+  /**
+   * Creates a Policy that speculatively executes hedged attempts.
+   * 
+   * @param {import('./policies/hedge.js').HedgeOptions} options
+   * @returns {Policy}
+   */
+  static hedge(options) {
+    const hedger = hedge(options);
+    return new Policy((fn) => hedger.execute(fn));
   }
 
   /**

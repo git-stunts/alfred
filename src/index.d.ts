@@ -18,19 +18,24 @@
  */
 
 /**
+ * A value that can be either static or resolved dynamically via a function.
+ */
+export type Resolvable<T> = T | (() => T);
+
+/**
  * Options for the Retry policy.
  */
 export interface RetryOptions {
   /** Maximum number of retry attempts. Default: 3 */
-  retries?: number;
+  retries?: Resolvable<number>;
   /** Base delay in milliseconds. Default: 1000 */
-  delay?: number;
+  delay?: Resolvable<number>;
   /** Maximum delay cap in milliseconds. Default: 30000 */
-  maxDelay?: number;
+  maxDelay?: Resolvable<number>;
   /** Backoff strategy. Default: 'constant' */
-  backoff?: 'constant' | 'linear' | 'exponential';
+  backoff?: Resolvable<'constant' | 'linear' | 'exponential'>;
   /** Jitter strategy to prevent thundering herd. Default: 'none' */
-  jitter?: 'none' | 'full' | 'equal' | 'decorrelated';
+  jitter?: Resolvable<'none' | 'full' | 'equal' | 'decorrelated'>;
   /** Predicate to determine if an error is retryable. Default: always true */
   shouldRetry?: (error: Error) => boolean;
   /** Callback invoked before each retry. */
@@ -46,11 +51,11 @@ export interface RetryOptions {
  */
 export interface CircuitBreakerOptions {
   /** Number of failures before opening the circuit. */
-  threshold: number;
+  threshold: Resolvable<number>;
   /** Milliseconds to stay open before transitioning to half-open. */
-  duration: number;
+  duration: Resolvable<number>;
   /** Consecutive successes required to close the circuit from half-open. Default: 1 */
-  successThreshold?: number;
+  successThreshold?: Resolvable<number>;
   /** Predicate to determine if an error counts as a failure. Default: always true */
   shouldTrip?: (error: Error) => boolean;
   /** Callback when circuit opens. */
@@ -80,9 +85,23 @@ export interface TimeoutOptions {
  */
 export interface BulkheadOptions {
   /** Maximum concurrent executions. */
-  limit: number;
+  limit: Resolvable<number>;
   /** Maximum pending requests in queue. Default: 0 */
-  queueLimit?: number;
+  queueLimit?: Resolvable<number>;
+  /** Telemetry sink for observability. */
+  telemetry?: TelemetrySink;
+  /** Clock implementation for testing. */
+  clock?: any;
+}
+
+/**
+ * Options for the Hedge policy.
+ */
+export interface HedgeOptions {
+  /** Milliseconds to wait before spawning a hedge. */
+  delay: Resolvable<number>;
+  /** Maximum number of hedged attempts to spawn. Default: 1 */
+  maxHedges?: Resolvable<number>;
   /** Telemetry sink for observability. */
   telemetry?: TelemetrySink;
   /** Clock implementation for testing. */
@@ -217,7 +236,7 @@ export function circuitBreaker(options: CircuitBreakerOptions): CircuitBreaker;
  * @param fn The function to execute. Accepts an AbortSignal if defined.
  * @param options Configuration options.
  */
-export function timeout<T>(ms: number, fn: ((signal: AbortSignal) => Promise<T>) | (() => Promise<T>), options?: TimeoutOptions): Promise<T>;
+export function timeout<T>(ms: Resolvable<number>, fn: ((signal: AbortSignal) => Promise<T>) | (() => Promise<T>), options?: TimeoutOptions): Promise<T>;
 
 /**
  * Represents a Bulkhead instance.
@@ -239,6 +258,19 @@ export interface Bulkhead {
  * @param options Configuration options.
  */
 export function bulkhead(options: BulkheadOptions): Bulkhead;
+
+/**
+ * Represents a Hedge policy instance.
+ */
+export interface Hedge {
+  execute<T>(fn: (signal?: AbortSignal) => Promise<T>): Promise<T>;
+}
+
+/**
+ * Creates a Hedge policy for speculative execution.
+ * @param options Configuration options.
+ */
+export function hedge(options: HedgeOptions): Hedge;
 
 /**
  * Composes multiple policies into a single executable policy.
@@ -268,9 +300,11 @@ export class Policy {
   /** Creates a Circuit Breaker policy wrapper. */
   static circuitBreaker(options: CircuitBreakerOptions): Policy;
   /** Creates a Timeout policy wrapper. */
-  static timeout(ms: number, options?: TimeoutOptions): Policy;
+  static timeout(ms: Resolvable<number>, options?: TimeoutOptions): Policy;
   /** Creates a Bulkhead policy wrapper. */
   static bulkhead(options: BulkheadOptions): Policy;
+  /** Creates a Hedge policy wrapper. */
+  static hedge(options: HedgeOptions): Policy;
   /** Creates a pass-through (no-op) policy. */
   static noop(): Policy;
 

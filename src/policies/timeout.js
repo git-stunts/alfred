@@ -9,6 +9,7 @@
 
 import { TimeoutError } from '../errors.js';
 import { NoopSink } from '../telemetry.js';
+import { resolve } from '../utils/resolvable.js';
 
 /**
  * @typedef {Object} TimeoutOptions
@@ -45,6 +46,7 @@ import { NoopSink } from '../telemetry.js';
  */
 export async function timeout(ms, fn, options = {}) {
   const { onTimeout, telemetry = new NoopSink() } = options;
+  const timeoutMs = resolve(ms);
   const controller = new AbortController();
   const startTime = Date.now();
 
@@ -62,12 +64,12 @@ export async function timeout(ms, fn, options = {}) {
       telemetry.emit({
         type: 'timeout',
         timestamp: Date.now(),
-        timeout: ms,
+        timeout: timeoutMs,
         elapsed
       });
 
-      reject(new TimeoutError(ms, elapsed));
-    }, ms);
+      reject(new TimeoutError(timeoutMs, elapsed));
+    }, timeoutMs);
   });
 
   try {

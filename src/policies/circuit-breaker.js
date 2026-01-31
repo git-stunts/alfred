@@ -1,6 +1,7 @@
 import { CircuitOpenError } from '../errors.js';
 import { SystemClock } from '../utils/clock.js';
 import { NoopSink } from '../telemetry.js';
+import { resolve } from '../utils/resolvable.js';
 
 /**
  * Circuit breaker states.
@@ -111,7 +112,7 @@ class CircuitBreakerPolicy {
       return false;
     }
     const elapsed = this.options.clock.now() - this.openedAt.getTime();
-    return elapsed >= this.options.duration;
+    return elapsed >= resolve(this.options.duration);
   }
 
   recordSuccess() {
@@ -119,7 +120,7 @@ class CircuitBreakerPolicy {
 
     if (this._state === State.HALF_OPEN) {
       this.successCount++;
-      if (this.successCount >= this.options.successThreshold) {
+      if (this.successCount >= resolve(this.options.successThreshold)) {
         this.close();
       }
     } else if (this._state === State.CLOSED) {
@@ -141,7 +142,7 @@ class CircuitBreakerPolicy {
       this.open();
     } else if (this._state === State.CLOSED) {
       this.failureCount++;
-      if (this.failureCount >= this.options.threshold) {
+      if (this.failureCount >= resolve(this.options.threshold)) {
         this.open();
       }
     }
