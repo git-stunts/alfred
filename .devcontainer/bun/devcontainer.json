@@ -1,0 +1,14 @@
+{
+	"name": "Bun",
+	"image": "oven/bun:1.0",
+	"features": {
+		"ghcr.io/devcontainers/features/git:1": {}
+	},
+    "customizations": {
+		"vscode": {
+			"extensions": [
+				"dbaeumer.vscode-eslint"
+			]
+		}
+	}
+}

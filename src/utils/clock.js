@@ -7,7 +7,15 @@ export class SystemClock {
   }
 
   async sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise(resolve => {
+      const timer = setTimeout(resolve, ms);
+      if (typeof timer === 'object' && typeof timer.unref === 'function') {
+        timer.unref();
+      } else if (typeof Deno !== 'undefined' && typeof Deno.unrefTimer === 'function') {
+        // Deno returns a number ID
+        Deno.unrefTimer(timer);
+      }
+    });
   }
 }
 
