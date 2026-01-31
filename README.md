@@ -1,5 +1,19 @@
 # @git-stunts/alfred
 
+```text
+      .o.       oooo   .o88o.                          .o8
+     .888.      `888   888 `"                         "888
+    .8"888.      888  o888oo  oooo d8b  .ooooo.   .oooo888
+   .8' `888.     888   888    `888""8P d88' `88b d88' `888
+  .88ooo8888.    888   888     888     888ooo888 888   888
+ .8'     `888.   888   888     888     888    .o 888   888
+o88o     o8888o o888o o888o   d888b    `Y8bod8P' `Y8bod88P"
+```
+
+[![JSR](https://jsr.io/badges/@git-stunts/alfred)](https://jsr.io/@git-stunts/alfred)
+[![NPM Version](https://img.shields.io/npm/v/@git-stunts/alfred)](https://www.npmjs.com/package/@git-stunts/alfred)
+[![CI](https://github.com/git-stunts/alfred/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/alfred/actions/workflows/ci.yml)
+
 > *"Why do we fall, Bruce?"*
 >
 > *"So we can `retry({ backoff: 'exponential', jitter: 'decorrelated' })`."*
@@ -8,8 +22,14 @@ Resilience patterns for async operations. *Tuff 'nuff for most stuff!*
 
 ## Installation
 
+### NPM
 ```bash
 npm install @git-stunts/alfred
+```
+
+### JSR (Deno, Bun, Node)
+```bash
+npx jsr add @git-stunts/alfred
 ```
 
 ## Multi-Runtime Support
