@@ -31,7 +31,8 @@ const result = await breaker.execute(() => callFlakeyService());
 const resilient = compose(
   timeout(5000),
   retry({ retries: 3, backoff: 'exponential', jitter: 'full' }),
-  circuitBreaker({ threshold: 5, duration: 60000 })
+  circuitBreaker({ threshold: 5, duration: 60000 }),
+  bulkhead({ limit: 10, queueLimit: 20 })
 );
 
 await resilient.execute(() => riskyOperation());
@@ -125,6 +126,39 @@ try {
 | `onClose` | `() => void` | - | Called when circuit closes |
 | `onHalfOpen` | `() => void` | - | Called when entering half-open |
 
+### `bulkhead(options)`
+
+Limits the number of concurrent executions to prevent resource exhaustion.
+
+```javascript
+import { bulkhead } from '@git-stunts/alfred';
+
+const limiter = bulkhead({
+  limit: 10,       // Max 10 concurrent executions
+  queueLimit: 20   // Max 20 pending requests in queue
+});
+
+// Returns an object with:
+// - execute(fn): Method to run the operation
+// - stats: { active, pending, available }
+try {
+  await limiter.execute(() => heavyOperation());
+} catch (err) {
+  if (err.name === 'BulkheadRejectedError') {
+    console.log('Too many concurrent requests, failing fast');
+  }
+}
+
+console.log(`Current load: ${limiter.stats.active} active tasks`);
+```
+
+**Options:**
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `limit` | `number` | required | Maximum concurrent executions |
+| `queueLimit` | `number` | `0` | Maximum pending requests in queue |
+
 ### `timeout(ms, options)`
 
 Prevents operations from hanging indefinitely.
@@ -143,6 +177,23 @@ const result = await timeout(5000, () => slowOperation(), {
 
 Throws `TimeoutError` if the operation exceeds the time limit.
 
+### `Policy` (Fluent API)
+
+Building complex policies is easy with the chainable `Policy` class.
+
+```javascript
+import { Policy, ConsoleSink } from '@git-stunts/alfred';
+
+const telemetry = new ConsoleSink();
+
+const resilient = Policy.timeout(30000)
+  .wrap(Policy.retry({ retries: 3, backoff: 'exponential', telemetry }))
+  .wrap(Policy.circuitBreaker({ threshold: 5, duration: 60000, telemetry }))
+  .wrap(Policy.bulkhead({ limit: 5, queueLimit: 10, telemetry }));
+
+await resilient.execute(() => riskyOperation());
+```
+
 ### `compose(...policies)`
 
 Combines multiple policies. Policies execute from left to right (outermost to innermost).
@@ -153,14 +204,47 @@ import { compose, retry, circuitBreaker, timeout } from '@git-stunts/alfred';
 const resilient = compose(
   timeout(30000),                                    // Total timeout
   retry({ retries: 3, backoff: 'exponential' }),     // Retry failures
-  circuitBreaker({ threshold: 5, duration: 60000 }) // Fail fast if broken
+  circuitBreaker({ threshold: 5, duration: 60000 }), // Fail fast if broken
+  bulkhead({ limit: 5, queueLimit: 10 })             // Limit concurrency
 );
 
 // Execution order:
 // 1. Start 30s timeout
 // 2. Try operation (retry up to 3x on failure)
-// 3. Each attempt checks circuit breaker first
+// 3. Each attempt checks circuit breaker and bulkhead
 await resilient.execute(() => riskyOperation());
+```
+
+### Telemetry & Observability
+
+Alfred provides a composable telemetry system to monitor policy behavior.
+
+```javascript
+import { 
+  Policy, 
+  ConsoleSink, 
+  InMemorySink, 
+  MultiSink 
+} from '@git-stunts/alfred';
+
+// 1. Create a sink (or multiple)
+const sink = new MultiSink([
+  new ConsoleSink(),
+  new InMemorySink()
+]);
+
+// 2. Attach to policies
+const policy = Policy.retry({ 
+  retries: 3, 
+  telemetry: sink 
+});
+
+// All policies emit events:
+// - retry: success, failure, scheduled, exhausted
+// - circuit: open, close, half-open, success, failure, reject
+// - bulkhead: execute, complete, queued, reject
+// - timeout: timeout
+await policy.execute(() => doSomething());
 ```
 
 ## Testing
