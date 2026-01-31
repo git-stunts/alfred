@@ -21,7 +21,8 @@ export default [
         AbortController: "readonly",
         AbortSignal: "readonly",
         performance: "readonly",
-        global: "readonly"
+        global: "readonly",
+        DOMException: "readonly"
       }
     },
     rules: {

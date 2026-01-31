@@ -10,6 +10,7 @@
 import { SystemClock } from '../utils/clock.js';
 import { createJitter } from '../utils/jitter.js';
 import { RetryExhaustedError } from '../errors.js';
+import { NoopSink } from '../telemetry.js';
 
 /**
  * @typedef {'constant' | 'linear' | 'exponential'} BackoffStrategy
@@ -29,12 +30,9 @@ import { RetryExhaustedError } from '../errors.js';
  * @property {(error: Error) => boolean} [shouldRetry] - Predicate to determine if error is retryable
  * @property {(error: Error, attempt: number, delay: number) => void} [onRetry] - Callback invoked before each retry
  * @property {{ now(): number, sleep(ms: number): Promise<void> }} [clock] - Clock for testing
+ * @property {import('../telemetry.js').TelemetrySink} [telemetry] - Telemetry sink
  */
 
-/**
- * Default options for retry policy.
- * @type {Required<Omit<RetryOptions, 'shouldRetry' | 'onRetry' | 'clock'>>}
- */
 const DEFAULT_OPTIONS = {
   retries: 3,
   delay: 1000,
@@ -43,14 +41,6 @@ const DEFAULT_OPTIONS = {
   jitter: 'none'
 };
 
-/**
- * Calculates raw backoff delay based on strategy.
- *
- * @param {BackoffStrategy} strategy - Backoff strategy
- * @param {number} baseDelay - Base delay in milliseconds
- * @param {number} attempt - Current attempt number (1-indexed)
- * @returns {number} Raw delay before jitter and capping
- */
 function calculateBackoff(strategy, baseDelay, attempt) {
   switch (strategy) {
     case 'linear':
@@ -63,100 +53,118 @@ function calculateBackoff(strategy, baseDelay, attempt) {
   }
 }
 
+class RetryExecutor {
+  constructor(fn, options) {
+    this.fn = fn;
+    this.options = { ...DEFAULT_OPTIONS, ...options };
+    this.clock = options.clock || new SystemClock();
+    this.telemetry = options.telemetry || new NoopSink();
+    this.applyJitter = createJitter(this.options.jitter);
+    this.prevDelay = this.options.delay;
+  }
+
+  calculateDelay(attempt) {
+    const { backoff, delay: baseDelay, maxDelay, jitter } = this.options;
+    const rawDelay = calculateBackoff(backoff, baseDelay, attempt);
+
+    if (jitter === 'decorrelated') {
+      const actual = this.applyJitter(baseDelay, this.prevDelay, maxDelay);
+      this.prevDelay = actual;
+      return actual;
+    }
+    
+    return Math.min(this.applyJitter(rawDelay), maxDelay);
+  }
+
+  async execute() {
+    const totalAttempts = this.options.retries + 1;
+
+    for (let attempt = 1; attempt <= totalAttempts; attempt++) {
+      const shouldStop = await this.tryAttempt(attempt, totalAttempts);
+      if (shouldStop) {
+        return shouldStop.result;
+      }
+    }
+    
+    // Should be unreachable if logic is correct, but satisfied strict returns
+    throw new Error('Unexpected retry loop termination');
+  }
+
+  async tryAttempt(attempt) {
+    const startTime = this.clock.now();
+    try {
+      const result = await this.fn();
+      this.emitSuccess(attempt, startTime);
+      return { result };
+    } catch (error) {
+      this.handleFailure(error, attempt, startTime);
+      // If we didn't throw in handleFailure, we need to wait
+      // But we need to calculate delay first
+      const delay = this.calculateDelay(attempt);
+      this.emitScheduled(attempt, delay, error);
+      
+      if (this.options.onRetry) {
+        this.options.onRetry(error, attempt, delay);
+      }
+      
+      await this.clock.sleep(delay);
+      return null; // Continue loop
+    }
+  }
+
+  emitSuccess(attempt, startTime) {
+    this.telemetry.emit({
+      type: 'retry.success',
+      timestamp: this.clock.now(),
+      attempt,
+      duration: this.clock.now() - startTime
+    });
+  }
+
+  emitScheduled(attempt, delay, error) {
+    this.telemetry.emit({
+      type: 'retry.scheduled',
+      timestamp: this.clock.now(),
+      attempt,
+      delay,
+      error
+    });
+  }
+
+  handleFailure(error, attempt, startTime) {
+    this.telemetry.emit({
+      type: 'retry.failure',
+      timestamp: this.clock.now(),
+      attempt,
+      error,
+      duration: this.clock.now() - startTime
+    });
+
+    if (this.options.shouldRetry && !this.options.shouldRetry(error)) {
+      throw error;
+    }
+
+    const totalAttempts = this.options.retries + 1;
+    if (attempt >= totalAttempts) {
+      this.telemetry.emit({
+        type: 'retry.exhausted',
+        timestamp: this.clock.now(),
+        attempts: attempt,
+        error
+      });
+      throw new RetryExhaustedError(attempt, error);
+    }
+  }
+}
+
 /**
  * Executes an async function with configurable retry logic.
- *
- * The function will be retried up to `retries` times on failure. Between
- * retries, a delay is applied based on the backoff strategy, optionally
- * modified by jitter to prevent thundering herd problems.
  *
  * @template T
  * @param {() => Promise<T>} fn - Async function to execute
  * @param {RetryOptions} [options={}] - Retry configuration
  * @returns {Promise<T>} Result of the successful execution
- * @throws {RetryExhaustedError} When all retry attempts are exhausted
- * @throws {Error} When shouldRetry returns false for an error
- *
- * @example
- * // Basic retry with defaults
- * const data = await retry(() => fetch(url));
- *
- * @example
- * // Exponential backoff with jitter
- * const result = await retry(() => fetch(url), {
- *   retries: 5,
- *   delay: 100,
- *   backoff: 'exponential',
- *   jitter: 'full',
- *   shouldRetry: (err) => err.code === 'ECONNREFUSED'
- * });
- *
- * @example
- * // With retry callback for logging
- * const result = await retry(fetchData, {
- *   onRetry: (error, attempt, delay) => {
- *     console.log(`Retry ${attempt} after ${delay}ms: ${error.message}`);
- *   }
- * });
  */
 export async function retry(fn, options = {}) {
-  const {
-    retries,
-    delay: baseDelay,
-    maxDelay,
-    backoff,
-    jitter: jitterStrategy
-  } = { ...DEFAULT_OPTIONS, ...options };
-
-  const { shouldRetry, onRetry, clock = new SystemClock() } = options;
-
-  const applyJitter = createJitter(jitterStrategy);
-
-  // Track previous delay for decorrelated jitter
-  let prevDelay = baseDelay;
-  let lastError;
-
-  // Total attempts = initial + retries
-  const totalAttempts = retries + 1;
-
-  for (let attempt = 1; attempt <= totalAttempts; attempt++) {
-    try {
-      return await fn();
-    } catch (error) {
-      lastError = error;
-
-      // Check if we should retry this error
-      if (shouldRetry && !shouldRetry(error)) {
-        throw error;
-      }
-
-      // If this was the last attempt, throw exhausted error
-      if (attempt >= totalAttempts) {
-        throw new RetryExhaustedError(attempt, error);
-      }
-
-      // Calculate delay with backoff
-      const rawDelay = calculateBackoff(backoff, baseDelay, attempt);
-
-      // Apply jitter (decorrelated needs previous delay and maxDelay)
-      let actualDelay;
-      if (jitterStrategy === 'decorrelated') {
-        actualDelay = applyJitter(baseDelay, prevDelay, maxDelay);
-        prevDelay = actualDelay;
-      } else {
-        actualDelay = Math.min(applyJitter(rawDelay), maxDelay);
-      }
-
-      // Invoke retry callback if provided
-      if (onRetry) {
-        onRetry(error, attempt, actualDelay);
-      }
-
-      // Wait before next attempt
-      await clock.sleep(actualDelay);
-    }
-  }
-
-  // This should be unreachable, but TypeScript likes it
-  throw new RetryExhaustedError(totalAttempts, lastError);
+  return new RetryExecutor(fn, options).execute();
 }

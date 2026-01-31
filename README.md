@@ -4,7 +4,7 @@
 >
 > *"So we can `retry({ backoff: 'exponential', jitter: 'decorrelated' })`."*
 
-Production-grade resilience patterns for async operations. No Result types, no monads - just async/await with try/catch, the way nature intended.
+Resilience patterns for async operations. *Tuff 'nuff for most stuff!*
 
 ## Installation
 
@@ -226,16 +226,11 @@ try {
 }
 ```
 
-## Philosophy
 
-Alfred is the anti-Result library. In JavaScript:
-
-- **Throwing is fast.** V8 optimizes try/catch as normal control flow.
-- **Result types allocate.** `{ ok: true, value }` creates garbage on every call.
-- **Async/await is ergonomic.** No `.map()`, `.andThen()`, `.unwrap()` chains.
-
-We took the battle-tested patterns from `@zerothrow/resilience` and rewrote them for the throw/catch world.
+---
 
 ## License
 
-Apache-2.0
+Apache-2.0 
+
+© 2026 James Ross

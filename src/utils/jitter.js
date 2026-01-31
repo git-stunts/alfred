@@ -46,6 +46,7 @@ export function equalJitter(delay, random = Math.random) {
  * @param {() => number} [random=Math.random] - Random function (0-1)
  * @returns {number}
  */
+// eslint-disable-next-line max-params
 export function decorrelatedJitter(baseDelay, prevDelay, maxDelay, random = Math.random) {
   const next = Math.floor(random() * (prevDelay * 3 - baseDelay)) + baseDelay;
   return Math.min(next, maxDelay);

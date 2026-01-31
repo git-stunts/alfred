@@ -1,4 +1,13 @@
 /**
+ * @fileoverview Composition utilities for combining resilience policies.
+ *
+ * Provides functions to compose, fallback, and race policies, enabling
+ * complex resilience strategies through simple primitives.
+ *
+ * @module @git-stunts/alfred/compose
+ */
+
+/**
  * @typedef {Object} Policy
  * @property {<T>(fn: () => Promise<T>) => Promise<T>} execute - Executes the function with the policy applied
  */
@@ -105,50 +114,40 @@ export function race(policyA, policyB) {
      * @param {() => Promise<T>} fn - Function to execute
      * @returns {Promise<T>}
      */
-    async execute(fn) {
-      /** @type {Error | null} */
-      let firstError = null;
-      let errorCount = 0;
+    execute(fn) {
+      return new Promise((resolve, reject) => {
+        let settled = false;
+        /** @type {Error | null} */
+        let firstError = null;
+        let failureCount = 0;
 
-      const wrapWithErrorTracking = (promise, isFirst) => {
-        return promise.catch((error) => {
+        const handleSuccess = (result) => {
+          if (!settled) {
+            settled = true;
+            resolve(result);
+          }
+        };
+
+        const handleFailure = (error, isFirst) => {
+          if (settled) {
+            return;
+          }
+
           if (isFirst) {
             firstError = error;
           }
-          errorCount++;
+          failureCount++;
 
-          // Return a promise that never resolves
-          // This allows the other policy to potentially succeed
-          return new Promise(() => {});
-        });
-      };
-
-      const promiseA = wrapWithErrorTracking(policyA.execute(fn), true);
-      const promiseB = wrapWithErrorTracking(policyB.execute(fn), false);
-
-      // Race both policies
-      const result = await Promise.race([
-        promiseA,
-        promiseB,
-        // Also race against a check for both failing
-        Promise.all([
-          policyA.execute(fn).catch((e) => ({ __failed: true, error: e, isFirst: true })),
-          policyB.execute(fn).catch((e) => ({ __failed: true, error: e, isFirst: false }))
-        ]).then((results) => {
-          // If we get here, both have completed (failed or succeeded)
-          const failures = results.filter((r) => r && r.__failed);
-          if (failures.length === 2) {
-            // Both failed - throw first error
-            const firstFailure = failures.find((f) => f.isFirst);
-            throw firstFailure.error;
+          // If both have failed, reject with first error
+          if (failureCount === 2) {
+            settled = true;
+            reject(firstError);
           }
-          // At least one succeeded, but Promise.race should have caught it
-          // This shouldn't normally be reached
-          return results.find((r) => !r || !r.__failed);
-        })
-      ]);
+        };
 
-      return result;
+        policyA.execute(fn).then(handleSuccess, (e) => handleFailure(e, true));
+        policyB.execute(fn).then(handleSuccess, (e) => handleFailure(e, false));
+      });
     }
   };
 }

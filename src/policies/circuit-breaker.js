@@ -1,5 +1,6 @@
 import { CircuitOpenError } from '../errors.js';
 import { SystemClock } from '../utils/clock.js';
+import { NoopSink } from '../telemetry.js';
 
 /**
  * Circuit breaker states.
@@ -22,6 +23,7 @@ const State = {
  * @property {() => void} [onClose] - Callback when circuit closes
  * @property {() => void} [onHalfOpen] - Callback when circuit transitions to half-open
  * @property {{ now(): number }} [clock] - Clock implementation for testing
+ * @property {import('../telemetry.js').TelemetrySink} [telemetry] - Telemetry sink
  */
 
 /**
@@ -30,171 +32,158 @@ const State = {
  * @property {string} state - Current circuit state (CLOSED, OPEN, HALF_OPEN)
  */
 
-/**
- * Creates a circuit breaker that prevents cascading failures by failing fast
- * when a dependency is unhealthy.
- *
- * The circuit breaker has three states:
- * - CLOSED: Normal operation, requests pass through
- * - OPEN: Fail fast, requests immediately throw CircuitOpenError
- * - HALF_OPEN: Testing state, allows limited requests to check if dependency recovered
- *
- * @param {CircuitBreakerOptions} options - Configuration options
- * @returns {CircuitBreaker} Circuit breaker instance
- * @throws {Error} If required options are missing
- *
- * @example
- * const breaker = circuitBreaker({ threshold: 5, duration: 60000 });
- * const result = await breaker.execute(() => callService());
- *
- * @example
- * // With all options
- * const breaker = circuitBreaker({
- *   threshold: 3,
- *   duration: 30000,
- *   successThreshold: 2,
- *   shouldTrip: (err) => err.status >= 500,
- *   onOpen: () => console.log('Circuit opened'),
- *   onClose: () => console.log('Circuit closed'),
- *   onHalfOpen: () => console.log('Circuit half-open')
- * });
- */
-export function circuitBreaker(options) {
-  const {
-    threshold,
-    duration,
-    successThreshold = 1,
-    shouldTrip = () => true,
-    onOpen,
-    onClose,
-    onHalfOpen,
-    clock = new SystemClock()
-  } = options;
+class CircuitBreakerPolicy {
+  constructor(options) {
+    const {
+      threshold,
+      duration,
+      successThreshold = 1,
+      shouldTrip = () => true,
+      onOpen,
+      onClose,
+      onHalfOpen,
+      clock = new SystemClock(),
+      telemetry = new NoopSink()
+    } = options;
 
-  if (threshold === undefined || threshold === null) {
-    throw new Error('threshold is required');
-  }
-  if (duration === undefined || duration === null) {
-    throw new Error('duration is required');
+    if (threshold === undefined || threshold === null) {
+      throw new Error('threshold is required');
+    }
+    if (duration === undefined || duration === null) {
+      throw new Error('duration is required');
+    }
+
+    this.options = {
+      threshold,
+      duration,
+      successThreshold,
+      shouldTrip,
+      onOpen,
+      onClose,
+      onHalfOpen,
+      clock,
+      telemetry
+    };
+
+    this._state = State.CLOSED;
+    this.failureCount = 0;
+    this.successCount = 0;
+    this.openedAt = null;
   }
 
-  let state = State.CLOSED;
-  let failureCount = 0;
-  let successCount = 0;
-  let openedAt = null;
-
-  /**
-   * Transitions to OPEN state.
-   */
-  function open() {
-    state = State.OPEN;
-    openedAt = new Date(clock.now());
-    onOpen?.();
+  get state() {
+    return this._state;
   }
 
-  /**
-   * Transitions to CLOSED state.
-   */
-  function close() {
-    state = State.CLOSED;
-    failureCount = 0;
-    successCount = 0;
-    openedAt = null;
-    onClose?.();
+  emitEvent(type, data) {
+    this.options.telemetry.emit({
+      type,
+      timestamp: this.options.clock.now(),
+      ...data
+    });
   }
 
-  /**
-   * Transitions to HALF_OPEN state.
-   */
-  function halfOpen() {
-    state = State.HALF_OPEN;
-    successCount = 0;
-    onHalfOpen?.();
+  open() {
+    this._state = State.OPEN;
+    this.openedAt = new Date(this.options.clock.now());
+    this.options.onOpen?.();
+    this.emitEvent('circuit.open', { failureCount: this.failureCount });
   }
 
-  /**
-   * Checks if the circuit should transition from OPEN to HALF_OPEN.
-   * @returns {boolean}
-   */
-  function shouldAttemptReset() {
-    if (state !== State.OPEN || !openedAt) {
+  close() {
+    this._state = State.CLOSED;
+    this.failureCount = 0;
+    this.successCount = 0;
+    this.openedAt = null;
+    this.options.onClose?.();
+    this.emitEvent('circuit.close');
+  }
+
+  halfOpen() {
+    this._state = State.HALF_OPEN;
+    this.successCount = 0;
+    this.options.onHalfOpen?.();
+    this.emitEvent('circuit.half-open');
+  }
+
+  shouldAttemptReset() {
+    if (this._state !== State.OPEN || !this.openedAt) {
       return false;
     }
-    const elapsed = clock.now() - openedAt.getTime();
-    return elapsed >= duration;
+    const elapsed = this.options.clock.now() - this.openedAt.getTime();
+    return elapsed >= this.options.duration;
   }
 
-  /**
-   * Records a successful execution.
-   */
-  function recordSuccess() {
-    if (state === State.HALF_OPEN) {
-      successCount++;
-      if (successCount >= successThreshold) {
-        close();
+  recordSuccess() {
+    this.emitEvent('circuit.success', { state: this._state });
+
+    if (this._state === State.HALF_OPEN) {
+      this.successCount++;
+      if (this.successCount >= this.options.successThreshold) {
+        this.close();
       }
-    } else if (state === State.CLOSED) {
-      failureCount = 0;
+    } else if (this._state === State.CLOSED) {
+      this.failureCount = 0;
     }
   }
 
-  /**
-   * Records a failed execution.
-   * @param {Error} error - The error that occurred
-   */
-  function recordFailure(error) {
-    if (!shouldTrip(error)) {
+  recordFailure(error) {
+    if (!this.options.shouldTrip(error)) {
       return;
     }
 
-    if (state === State.HALF_OPEN) {
-      open();
-    } else if (state === State.CLOSED) {
-      failureCount++;
-      if (failureCount >= threshold) {
-        open();
+    this.emitEvent('circuit.failure', {
+      error,
+      state: this._state
+    });
+
+    if (this._state === State.HALF_OPEN) {
+      this.open();
+    } else if (this._state === State.CLOSED) {
+      this.failureCount++;
+      if (this.failureCount >= this.options.threshold) {
+        this.open();
       }
     }
   }
 
-  /**
-   * Executes the provided function with circuit breaker protection.
-   *
-   * @template T
-   * @param {() => Promise<T>} fn - Async function to execute
-   * @returns {Promise<T>} Result of the function
-   * @throws {CircuitOpenError} When circuit is open
-   * @throws {Error} When the function throws and circuit is not tripped
-   */
-  async function execute(fn) {
-    // Check if we should transition from OPEN to HALF_OPEN
-    if (shouldAttemptReset()) {
-      halfOpen();
+  async execute(fn) {
+    if (this.shouldAttemptReset()) {
+      this.halfOpen();
     }
 
-    // If circuit is open, fail fast
-    if (state === State.OPEN) {
-      throw new CircuitOpenError(openedAt, failureCount);
+    if (this._state === State.OPEN) {
+      this.emitEvent('circuit.reject', {
+        openedAt: this.openedAt,
+        failureCount: this.failureCount
+      });
+      throw new CircuitOpenError(this.openedAt, this.failureCount);
     }
 
     try {
       const result = await fn();
-      recordSuccess();
+      this.recordSuccess();
       return result;
     } catch (error) {
-      recordFailure(error);
+      this.recordFailure(error);
       throw error;
     }
   }
+}
 
+/**
+ * Creates a circuit breaker that prevents cascading failures by failing fast
+ * when a dependency is unhealthy.
+ *
+ * @param {CircuitBreakerOptions} options - Configuration options
+ * @returns {CircuitBreaker} Circuit breaker instance
+ */
+export function circuitBreaker(options) {
+  const policy = new CircuitBreakerPolicy(options);
   return {
-    execute,
-    /**
-     * Gets the current circuit state.
-     * @type {string}
-     */
+    execute: (fn) => policy.execute(fn),
     get state() {
-      return state;
+      return policy.state;
     }
   };
 }

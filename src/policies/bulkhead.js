@@ -1,0 +1,145 @@
+/**
+ * @fileoverview Bulkhead policy for concurrency limiting.
+ *
+ * Limits the number of concurrent executions of an operation,
+ * optionally queuing excess requests up to a limit.
+ *
+ * @module @git-stunts/alfred/policies/bulkhead
+ */
+
+import { BulkheadRejectedError } from '../errors.js';
+import { SystemClock } from '../utils/clock.js';
+import { NoopSink } from '../telemetry.js';
+
+/**
+ * @typedef {Object} BulkheadOptions
+ * @property {number} limit - Maximum concurrent executions
+ * @property {number} [queueLimit=0] - Maximum pending requests in queue
+ * @property {import('../telemetry.js').TelemetrySink} [telemetry] - Telemetry sink
+ * @property {{ now(): number }} [clock] - Clock for timestamps
+ */
+
+/**
+ * @typedef {Object} BulkheadStats
+ * @property {number} active - Currently executing requests
+ * @property {number} pending - Requests waiting in queue
+ * @property {number} available - Remaining execution slots
+ */
+
+class BulkheadPolicy {
+  constructor(options) {
+    const { 
+      limit, 
+      queueLimit = 0, 
+      telemetry = new NoopSink(),
+      clock = new SystemClock() 
+    } = options;
+
+    if (limit <= 0) {
+      throw new Error('Bulkhead limit must be greater than 0');
+    }
+
+    this.limit = limit;
+    this.queueLimit = queueLimit;
+    this.telemetry = telemetry;
+    this.clock = clock;
+
+    this.active = 0;
+    this.queue = [];
+  }
+
+  processQueue() {
+    if (this.active < this.limit && this.queue.length > 0) {
+      const { fn, resolve, reject } = this.queue.shift();
+      this.active++;
+      
+      this.emitEvent('bulkhead.execute', {
+        active: this.active,
+        pending: this.queue.length
+      });
+
+      Promise.resolve()
+        .then(() => fn())
+        .then(resolve, reject)
+        .finally(() => {
+          this.active--;
+          this.emitEvent('bulkhead.complete', {
+            active: this.active,
+            pending: this.queue.length
+          });
+          this.processQueue();
+        });
+    }
+  }
+
+  emitEvent(type, data) {
+    this.telemetry.emit({
+      type,
+      timestamp: this.clock.now(),
+      ...data
+    });
+  }
+
+  async execute(fn) {
+    if (this.active < this.limit) {
+      this.active++;
+      this.emitEvent('bulkhead.execute', {
+        active: this.active,
+        pending: this.queue.length
+      });
+
+      try {
+        return await fn();
+      } finally {
+        this.active--;
+        this.emitEvent('bulkhead.complete', {
+          active: this.active,
+          pending: this.queue.length
+        });
+        this.processQueue();
+      }
+    }
+
+    if (this.queue.length < this.queueLimit) {
+      this.emitEvent('bulkhead.queued', {
+        active: this.active,
+        pending: this.queue.length + 1
+      });
+      
+      return new Promise((resolve, reject) => {
+        this.queue.push({ fn, resolve, reject });
+      });
+    }
+
+    this.emitEvent('bulkhead.reject', {
+      active: this.active,
+      pending: this.queue.length
+    });
+    throw new BulkheadRejectedError(this.limit, this.queueLimit);
+  }
+
+  get stats() {
+    return { 
+      active: this.active, 
+      pending: this.queue.length, 
+      available: Math.max(0, this.limit - this.active) 
+    };
+  }
+}
+
+/**
+ * Creates a bulkhead policy.
+ *
+ * @param {BulkheadOptions} options - Bulkhead configuration
+ * @returns {{ execute: <T>(fn: () => Promise<T>) => Promise<T>, stats: BulkheadStats }}
+ */
+export function bulkhead(options) {
+  const policy = new BulkheadPolicy(options);
+  
+  return {
+    execute: (fn) => policy.execute(fn),
+    get stats() {
+      return policy.stats;
+    }
+  };
+}

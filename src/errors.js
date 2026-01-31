@@ -45,3 +45,19 @@ export class TimeoutError extends Error {
     this.elapsed = elapsed;
   }
 }
+
+/**
+ * Error thrown when bulkhead queue is full.
+ */
+export class BulkheadRejectedError extends Error {
+  /**
+   * @param {number} limit - Max concurrent executions
+   * @param {number} queueLimit - Max pending requests
+   */
+  constructor(limit, queueLimit) {
+    super(`Bulkhead rejected: queue full (limit: ${limit}, queue: ${queueLimit})`);
+    this.name = 'BulkheadRejectedError';
+    this.limit = limit;
+    this.queueLimit = queueLimit;
+  }
+}

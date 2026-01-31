@@ -33,6 +33,7 @@
 import { retry } from './policies/retry.js';
 import { circuitBreaker } from './policies/circuit-breaker.js';
 import { timeout } from './policies/timeout.js';
+import { bulkhead } from './policies/bulkhead.js';
 import { compose, fallback, race } from './compose.js';
 
 /**
@@ -116,6 +117,21 @@ export class Policy {
    */
   static timeout(ms, options = {}) {
     return new Policy((fn) => timeout(ms, fn, options));
+  }
+
+  /**
+   * Creates a Policy that limits concurrent executions.
+   *
+   * @param {import('./policies/bulkhead.js').BulkheadOptions} options - Bulkhead configuration
+   * @returns {Policy} A new Policy wrapping bulkhead behavior
+   *
+   * @example
+   * const policy = Policy.bulkhead({ limit: 10, queueLimit: 50 });
+   * await policy.execute(() => heavyOperation());
+   */
+  static bulkhead(options) {
+    const limiter = bulkhead(options);
+    return new Policy((fn) => limiter.execute(fn));
   }
 
   /**

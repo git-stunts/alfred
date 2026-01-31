@@ -1,8 +1,19 @@
+/**
+ * @fileoverview Timeout policy for async operations.
+ *
+ * Provides time-limited execution with AbortSignal support for
+ * cooperative cancellation of in-flight operations.
+ *
+ * @module @git-stunts/alfred/policies/timeout
+ */
+
 import { TimeoutError } from '../errors.js';
+import { NoopSink } from '../telemetry.js';
 
 /**
  * @typedef {Object} TimeoutOptions
  * @property {(elapsed: number) => void} [onTimeout] - Callback invoked when timeout occurs
+ * @property {import('../telemetry.js').TelemetrySink} [telemetry] - Telemetry sink
  */
 
 /**
@@ -33,7 +44,7 @@ import { TimeoutError } from '../errors.js';
  * });
  */
 export async function timeout(ms, fn, options = {}) {
-  const { onTimeout } = options;
+  const { onTimeout, telemetry = new NoopSink() } = options;
   const controller = new AbortController();
   const startTime = Date.now();
 
@@ -47,6 +58,13 @@ export async function timeout(ms, fn, options = {}) {
       if (onTimeout) {
         onTimeout(elapsed);
       }
+      
+      telemetry.emit({
+        type: 'timeout',
+        timestamp: Date.now(),
+        timeout: ms,
+        elapsed
+      });
 
       reject(new TimeoutError(ms, elapsed));
     }, ms);
