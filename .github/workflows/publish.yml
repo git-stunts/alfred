@@ -26,12 +26,6 @@ jobs:
 
       - name: Publish to JSR
         run: npx jsr publish
-        continue-on-error: true # Don't fail if JSR publish fails (e.g. version exists)
-
-      - name: Publish to NPM
-        run: npm publish --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
