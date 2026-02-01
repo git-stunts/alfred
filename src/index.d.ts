@@ -175,6 +175,7 @@ export class MetricsSink implements TelemetrySink {
     failures: number;
     successes: number;
     circuitBreaks: number;
+    circuitRejections: number;
     bulkheadRejections: number;
     timeouts: number;
     hedges: number;
