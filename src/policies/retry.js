@@ -118,11 +118,12 @@ class RetryExecutor {
   }
 
   emitSuccess(attempt, startTime) {
+    const endTime = this.clock.now();
     this.telemetry.emit({
       type: 'retry.success',
-      timestamp: this.clock.now(),
+      timestamp: endTime,
       attempt,
-      duration: this.clock.now() - startTime,
+      duration: endTime - startTime,
       metrics: { successes: 1 }
     });
   }
@@ -139,12 +140,13 @@ class RetryExecutor {
   }
 
   handleFailure(error, attempt, startTime) {
+    const endTime = this.clock.now();
     this.telemetry.emit({
       type: 'retry.failure',
-      timestamp: this.clock.now(),
+      timestamp: endTime,
       attempt,
       error,
-      duration: this.clock.now() - startTime,
+      duration: endTime - startTime,
       metrics: { failures: 1 }
     });
 

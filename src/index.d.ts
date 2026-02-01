@@ -186,6 +186,7 @@ export class MetricsSink implements TelemetrySink {
       max: number;
       avg: number;
     };
+    [key: string]: number | { count: number; sum: number; min: number; max: number; avg: number };
   };
   /** Resets all metrics to zero. */
   clear(): void;

@@ -54,11 +54,12 @@ export function hedge(options) {
 
       return fn(controller.signal)
         .then(result => {
+          const endTime = clock.now();
           telemetry.emit({
             type: 'hedge.success',
-            timestamp: clock.now(),
+            timestamp: endTime,
             index,
-            duration: clock.now() - startTime,
+            duration: endTime - startTime,
             metrics: { successes: 1 }
           });
           return result;
@@ -66,11 +67,13 @@ export function hedge(options) {
         .catch(error => {
           // If this was a real error (not abort), we log it
           if (error.name !== 'AbortError') {
+            const endTime = clock.now();
             telemetry.emit({
               type: 'hedge.failure',
-              timestamp: clock.now(),
+              timestamp: endTime,
               index,
               error,
+              duration: endTime - startTime,
               metrics: { failures: 1 }
             });
           }
