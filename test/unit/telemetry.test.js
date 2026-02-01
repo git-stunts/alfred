@@ -1,6 +1,12 @@
 
 import { describe, it, expect, vi } from 'vitest';
-import { InMemorySink, ConsoleSink, MultiSink, NoopSink, MetricsSink } from '../../src/telemetry.js';
+import { 
+  InMemorySink, 
+  ConsoleSink, 
+  MultiSink, 
+  NoopSink, 
+  MetricsSink 
+} from '../../src/index.js';
 
 describe('Telemetry', () => {
   describe('InMemorySink', () => {

@@ -74,72 +74,62 @@ export class MultiSink {
   }
 }
 
+// Map event types to metric counters
+const EVENT_MAP = {
+  'retry.scheduled': 'retries',
+  'retry.failure': 'failures',
+  'retry.success': 'successes',
+  'circuit.failure': 'failures',
+  'circuit.success': 'successes',
+  'circuit.open': 'circuitBreaks',
+  'bulkhead.reject': 'bulkheadRejections',
+  'timeout': 'timeouts',
+  'hedge.failure': 'failures',
+  'hedge.success': 'successes'
+};
+
 /**
  * Sink that aggregates metrics in memory.
  * @implements {TelemetrySink}
  */
 export class MetricsSink {
   constructor() {
-    this.metrics = {
-      retries: 0,
-      failures: 0,
-      successes: 0,
-      circuitBreaks: 0,
-      bulkheadRejections: 0,
-      timeouts: 0,
-      hedges: 0,
-      latency: {
-        count: 0,
-        sum: 0,
-        min: Infinity,
-        max: 0
-      }
-    };
+    this.clear();
   }
 
+  /**
+   * Processes a telemetry event and updates internal counters.
+   * @param {TelemetryEvent} event 
+   */
   emit(event) {
     const { type, duration } = event;
 
-    // Track latency for any event with a duration
     if (typeof duration === 'number') {
-      this.metrics.latency.count++;
-      this.metrics.latency.sum += duration;
-      this.metrics.latency.min = Math.min(this.metrics.latency.min, duration);
-      this.metrics.latency.max = Math.max(this.metrics.latency.max, duration);
+      this._updateLatency(duration);
     }
 
-    switch (type) {
-      case 'retry.scheduled':
-        this.metrics.retries++;
-        break;
-      case 'retry.failure':
-      case 'circuit.failure':
-      case 'hedge.failure':
-        this.metrics.failures++;
-        break;
-      case 'retry.success':
-      case 'circuit.success':
-      case 'hedge.success':
-        this.metrics.successes++;
-        break;
-      case 'circuit.open':
-        this.metrics.circuitBreaks++;
-        break;
-      case 'bulkhead.reject':
-        this.metrics.bulkheadRejections++;
-        break;
-      case 'timeout':
-        this.metrics.timeouts++;
-        break;
-      case 'hedge.attempt':
-        // Only count index > 0 as a hedge attempt
-        if (event.index > 0) {
-          this.metrics.hedges++;
-        }
-        break;
+    if (type === 'hedge.attempt' && event.index > 0) {
+      this.metrics.hedges++;
+      return;
+    }
+
+    const counter = EVENT_MAP[type];
+    if (counter) {
+      this.metrics[counter]++;
     }
   }
 
+  _updateLatency(ms) {
+    const { latency } = this.metrics;
+    latency.count++;
+    latency.sum += ms;
+    latency.min = Math.min(latency.min, ms);
+    latency.max = Math.max(latency.max, ms);
+  }
+
+  /**
+   * Returns a snapshot of the current metrics.
+   */
   get stats() {
     const { latency } = this.metrics;
     const avg = latency.count > 0 ? latency.sum / latency.count : 0;
@@ -153,6 +143,9 @@ export class MetricsSink {
     };
   }
 
+  /**
+   * Resets all metrics to zero.
+   */
   clear() {
     this.metrics = {
       retries: 0,
