@@ -20,38 +20,17 @@ describe('Hedge Policy', () => {
 
   it('spawns hedge if primary is slow', async () => {
     const clock = new TestClock();
-    const results = ['primary', 'hedge'];
-    let calls = 0;
-    
-    const fn = vi.fn().mockImplementation(async (signal) => {
-      const id = calls++;
-      // Primary takes 200ms, Hedge takes 50ms
-      const duration = id === 0 ? 200 : 50;
-      
-      return new Promise((resolve) => {
-        const timer = setTimeout(() => resolve(results[id]), duration);
-        // signal?.addEventListener('abort', () => clearTimeout(timer));
-        // Note: TestClock doesn't intercept native setTimeout inside the mock unless we pass clock to it
-        // but here we are simulating "real" async work. 
-        // With TestClock controlling the policy, we need to manually advance time.
-        
-        // Actually, since we control the clock, `policy.execute` won't "wait" 100ms unless we advance it.
-        // But `hedge` uses `clock.sleep`.
-      });
-    });
 
     // We can't easily simulate "slow" vs "fast" using native timers mixed with TestClock 
     // because TestClock freezes the world for the Policy but not for the native Promises.
     
     // Better approach: Use manual resolvers.
     
-    let primaryResolve;
-    const primaryPromise = new Promise(r => primaryResolve = r);
+    const primaryPromise = new Promise(() => {});
     
     let hedgeResolve;
     const hedgePromise = new Promise(r => hedgeResolve = r);
     
-    const fnResolvers = [primaryResolve, hedgeResolve];
     const fnPromises = [primaryPromise, hedgePromise];
     
     let callCount = 0;
@@ -90,7 +69,7 @@ describe('Hedge Policy', () => {
     });
 
     const policy = hedge({ delay: 10, clock });
-    const p = policy.execute(fn);
+    policy.execute(fn);
     
     // Trigger hedge
     await clock.advance(10);

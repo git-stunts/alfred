@@ -10,7 +10,7 @@
 import { BulkheadRejectedError } from '../errors.js';
 import { SystemClock } from '../utils/clock.js';
 import { NoopSink } from '../telemetry.js';
-import { resolve } from '../utils/resolvable.js';
+import { resolve as resolveValue } from '../utils/resolvable.js';
 
 /**
  * @typedef {Object} BulkheadOptions
@@ -50,7 +50,7 @@ class BulkheadPolicy {
   }
 
   processQueue() {
-    const limit = resolve(this.limit);
+    const limit = resolveValue(this.limit);
     if (this.active < limit && this.queue.length > 0) {
       const { fn, resolve: promiseResolve, reject } = this.queue.shift();
       this.active++;
@@ -83,8 +83,8 @@ class BulkheadPolicy {
   }
 
   async execute(fn) {
-    const limit = resolve(this.limit);
-    const queueLimit = resolve(this.queueLimit);
+    const limit = resolveValue(this.limit);
+    const queueLimit = resolveValue(this.queueLimit);
 
     if (this.active < limit) {
       this.active++;
@@ -137,7 +137,7 @@ class BulkheadPolicy {
     return { 
       active: this.active, 
       pending: this.queue.length, 
-      available: Math.max(0, resolve(this.limit) - this.active) 
+      available: Math.max(0, resolveValue(this.limit) - this.active) 
     };
   }
 }

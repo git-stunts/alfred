@@ -6,7 +6,7 @@ import { RetryExhaustedError } from '../../src/errors.js';
 
 describe('Adaptive Retry', () => {
   it('updates retries count dynamically', async () => {
-    let retries = 1;
+    const retries = 1;
     const fn = vi.fn().mockRejectedValue(new Error('fail'));
     const clock = new TestClock();
 
@@ -32,10 +32,11 @@ describe('Adaptive Retry', () => {
     
     // Let's restart the scenario.
     // We want to prove that if we start with retries=1, fail once, then bump to retries=2, it continues.
+    await expect(resultPromise).rejects.toThrow();
   });
 
   it('respects dynamic retries limit', async () => {
-    let maxRetries = 1;
+    const maxRetries = 1;
     const fn = vi.fn().mockRejectedValue(new Error('fail'));
     const clock = new TestClock();
 

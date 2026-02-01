@@ -19,6 +19,91 @@ import { resolve } from '../utils/resolvable.js';
  * @property {{ now(): number, sleep(ms: number): Promise<void> }} [clock] - Clock for testing.
  */
 
+class HedgeExecutor {
+  constructor(fn, options) {
+    this.fn = fn;
+    this.options = { 
+      telemetry: new NoopSink(), 
+      clock: new SystemClock(), 
+      maxHedges: 1, 
+      ...options 
+    };
+    this.abortControllers = [];
+  }
+
+  async execute() {
+    const delay = resolve(this.options.delay);
+    const maxHedges = resolve(this.options.maxHedges);
+    const attempts = [];
+
+    // Start primary attempt
+    attempts.push(this.createAttempt(0));
+
+    // Schedule hedges
+    for (let i = 1; i <= maxHedges; i++) {
+      attempts.push(this.scheduleHedge(i, delay * i));
+    }
+
+    try {
+      return await Promise.any(attempts);
+    } finally {
+      this.cancelAll();
+    }
+  }
+
+  createAttempt(index) {
+    const controller = new AbortController();
+    this.abortControllers.push(controller);
+    const { clock, telemetry } = this.options;
+    
+    const startTime = clock.now();
+    telemetry.emit({
+      type: 'hedge.attempt',
+      timestamp: startTime,
+      index,
+      metrics: index > 0 ? { hedges: 1 } : {}
+    });
+
+    return this.fn(controller.signal)
+      .then(result => {
+        const endTime = clock.now();
+        telemetry.emit({
+          type: 'hedge.success',
+          timestamp: endTime,
+          index,
+          duration: endTime - startTime,
+          metrics: { successes: 1 }
+        });
+        return result;
+      })
+      .catch(error => {
+        if (error.name !== 'AbortError') {
+          const endTime = clock.now();
+          telemetry.emit({
+            type: 'hedge.failure',
+            timestamp: endTime,
+            index,
+            error,
+            duration: endTime - startTime,
+            metrics: { failures: 1 }
+          });
+        }
+        throw error;
+      });
+  }
+
+  scheduleHedge(index, delayMs) {
+    return this.options.clock.sleep(delayMs)
+      .then(() => this.createAttempt(index));
+  }
+
+  cancelAll() {
+    for (const controller of this.abortControllers) {
+      controller.abort();
+    }
+  }
+}
+
 /**
  * Creates a Hedge policy.
  *
@@ -26,109 +111,7 @@ import { resolve } from '../utils/resolvable.js';
  * @returns {{ execute: <T>(fn: () => Promise<T>) => Promise<T> }}
  */
 export function hedge(options) {
-  const { 
-    delay, 
-    maxHedges = 1,
-    telemetry = new NoopSink(),
-    clock = new SystemClock()
-  } = options;
-
-  async function execute(fn) {
-    const resolvedDelay = resolve(delay);
-    const resolvedMaxHedges = resolve(maxHedges);
-    const attempts = [];
-    const abortControllers = [];
-
-    // Helper to create a cancellable attempt
-    const createAttempt = (index) => {
-      const controller = new AbortController();
-      abortControllers.push(controller);
-      
-      const startTime = clock.now();
-      telemetry.emit({
-        type: 'hedge.attempt',
-        timestamp: startTime,
-        index,
-        metrics: index > 0 ? { hedges: 1 } : {}
-      });
-
-      return fn(controller.signal)
-        .then(result => {
-          const endTime = clock.now();
-          telemetry.emit({
-            type: 'hedge.success',
-            timestamp: endTime,
-            index,
-            duration: endTime - startTime,
-            metrics: { successes: 1 }
-          });
-          return result;
-        })
-        .catch(error => {
-          // If this was a real error (not abort), we log it
-          if (error.name !== 'AbortError') {
-            const endTime = clock.now();
-            telemetry.emit({
-              type: 'hedge.failure',
-              timestamp: endTime,
-              index,
-              error,
-              duration: endTime - startTime,
-              metrics: { failures: 1 }
-            });
-          }
-          throw error;
-        });
-    };
-
-    // Start primary attempt
-    attempts.push(createAttempt(0));
-
-    // Schedule hedges
-    for (let i = 1; i <= resolvedMaxHedges; i++) {
-      const hedgePromise = new Promise((resolveResult, rejectResult) => {
-        // We use a regular setTimeout here because we want to trigger *new* work
-        // independently of the first promise blocking.
-        // However, using the clock.sleep abstraction is tricky because we don't want to await it
-        // in the main flow. We want to "fire and forget" the timer.
-        
-        // Since `clock` is an interface, let's assume `sleep` resolves after time.
-        // We'll wrap it in an async IIFE.
-        (async () => {
-          await clock.sleep(resolvedDelay * i);
-          // If we are already done, stop.
-          // But `Promise.any` handles "first success".
-          // We just need to check if we should still spawn.
-          // For simplicity, we just spawn and let the race decide.
-          // Optimization: Check a `done` flag?
-          // Let's rely on Promise.any/race behavior for now.
-          
-          try {
-            const result = await createAttempt(i);
-            resolveResult(result);
-          } catch (err) {
-            rejectResult(err);
-          }
-        })();
-      });
-      attempts.push(hedgePromise);
-    }
-
-    try {
-      // We want the first *successful* result.
-      // Promise.any waits for the first fulfillment.
-      const result = await Promise.any(attempts);
-      return result;
-    } catch (aggregateError) {
-      // All attempts failed
-      throw aggregateError;
-    } finally {
-      // Cancel pending attempts to save resources
-      for (const controller of abortControllers) {
-        controller.abort();
-      }
-    }
-  }
-
-  return { execute };
+  return {
+    execute: (fn) => new HedgeExecutor(fn, options).execute()
+  };
 }
