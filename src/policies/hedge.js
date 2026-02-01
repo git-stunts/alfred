@@ -29,6 +29,7 @@ class HedgeExecutor {
       ...options,
     };
     this.abortControllers = [];
+    this._finished = false;
   }
 
   async execute() {
@@ -93,10 +94,16 @@ class HedgeExecutor {
   }
 
   scheduleHedge(index, delayMs) {
-    return this.options.clock.sleep(delayMs).then(() => this.createAttempt(index));
+    return this.options.clock.sleep(delayMs).then(() => {
+      if (this._finished) {
+        return new Promise(() => {}); // Never resolve if we are done
+      }
+      return this.createAttempt(index);
+    });
   }
 
   cancelAll() {
+    this._finished = true;
     for (const controller of this.abortControllers) {
       controller.abort();
     }

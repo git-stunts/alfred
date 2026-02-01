@@ -62,13 +62,26 @@ class BulkheadPolicy {
 
       Promise.resolve()
         .then(() => fn())
-        .then(promiseResolve, reject)
+        .then(
+          (result) => {
+            this.emitEvent('bulkhead.complete', {
+              active: this.active,
+              pending: this.queue.length,
+              metrics: { successes: 1 },
+            });
+            promiseResolve(result);
+          },
+          (error) => {
+            this.emitEvent('bulkhead.complete', {
+              active: this.active,
+              pending: this.queue.length,
+              metrics: { failures: 1 },
+            });
+            reject(error);
+          }
+        )
         .finally(() => {
           this.active--;
-          this.emitEvent('bulkhead.complete', {
-            active: this.active,
-            pending: this.queue.length,
-          });
           this.processQueue();
         });
     }

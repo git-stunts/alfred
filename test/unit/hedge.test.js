@@ -61,24 +61,31 @@ describe('Hedge Policy', () => {
   it('cancels pending attempts on success', async () => {
     const clock = new TestClock();
     const aborts = [];
+    let resolveFirst;
 
     const fn = vi.fn().mockImplementation((signal) => {
       signal.addEventListener('abort', () => aborts.push(true));
-      return new Promise(() => {}); // Never resolves normally
+      if (!resolveFirst) {
+        return new Promise((r) => {
+          resolveFirst = r;
+        });
+      }
+      return new Promise(() => {}); // Hedge hangs
     });
 
     const policy = hedge({ delay: 10, clock });
-    policy.execute(fn);
+    const p = policy.execute(fn);
 
     // Trigger hedge
     await clock.advance(10);
     for (let i = 0; i < 20; i++) await Promise.resolve();
 
-    // Now we have 2 pending attempts.
-    // If one finishes (e.g. we mock resolve one of them?)
-    // Wait, the previous test structure is better for control.
+    // Now resolve the first one
+    resolveFirst('success');
+    await p;
 
-    // Let's rely on the fact that if Promise.any returns, the finally block runs.
+    // Expect the hedge to be aborted
+    expect(aborts.length).toBeGreaterThan(0);
   });
 
   it('emits telemetry', async () => {
@@ -99,8 +106,8 @@ describe('Hedge Policy', () => {
     await resultPromise;
 
     const types = sink.events.map((e) => e.type);
-    expect(types).toContain('hedge.attempt'); // primary
-    expect(types).toContain('hedge.attempt'); // hedge
+    const attemptCount = types.filter((t) => t === 'hedge.attempt').length;
+    expect(attemptCount).toBe(2); // primary + hedge
     expect(types).toContain('hedge.success');
   });
 });

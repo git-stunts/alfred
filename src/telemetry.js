@@ -91,18 +91,25 @@ export class MetricsSink {
   emit(event) {
     const { duration, metrics } = event;
 
-    // 1. Handle explicit metric increments attached to the event
     if (metrics && typeof metrics === 'object') {
-      for (const [key, value] of Object.entries(metrics)) {
-        if (typeof value === 'number') {
-          this.metrics[key] = (this.metrics[key] || 0) + value;
-        }
-      }
+      this._updateMetrics(metrics);
     }
 
-    // 2. Handle Latency (special case for histogram/stats)
     if (typeof duration === 'number' && Number.isFinite(duration) && duration >= 0) {
       this._updateLatency(duration);
+    }
+  }
+
+  _updateMetrics(metrics) {
+    for (const [key, value] of Object.entries(metrics)) {
+      if (typeof value !== 'number') {
+        continue;
+      }
+
+      const current = this.metrics[key];
+      if (current === undefined || typeof current === 'number') {
+        this.metrics[key] = (current || 0) + value;
+      }
     }
   }
 
