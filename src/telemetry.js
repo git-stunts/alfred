@@ -119,13 +119,15 @@ export class MetricsSink {
    */
   get stats() {
     const { latency, ...rest } = this.metrics;
-    const avg = latency.count > 0 ? latency.sum / latency.count : 0;
+    const hasData = latency.count > 0;
     
     return {
       ...rest,
       latency: {
         ...latency,
-        avg
+        min: hasData ? latency.min : 0,
+        max: hasData ? latency.max : 0,
+        avg: hasData ? latency.sum / latency.count : 0
       }
     };
   }

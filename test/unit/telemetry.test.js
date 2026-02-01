@@ -109,6 +109,17 @@ describe('Telemetry', () => {
       expect(sink.stats.latency.count).toBe(0);
     });
 
+    it('normalizes empty latency state', () => {
+      const sink = new MetricsSink();
+      expect(sink.stats.latency).toEqual({
+        count: 0,
+        sum: 0,
+        min: 0,
+        max: 0,
+        avg: 0
+      });
+    });
+
     it('can be cleared', () => {
       const sink = new MetricsSink();
       sink.emit({ type: 'test', metrics: { custom: 1 } });
