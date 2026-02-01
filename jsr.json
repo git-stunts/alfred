@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/alfred",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Why do we fall, Bruce? Production-grade resilience patterns for async operations.",
 
   "license": "Apache-2.0",
