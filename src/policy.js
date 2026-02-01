@@ -137,7 +137,7 @@ export class Policy {
 
   /**
    * Creates a Policy that speculatively executes hedged attempts.
-   * 
+   *
    * @param {import('./policies/hedge.js').HedgeOptions} options
    * @returns {Policy}
    */
@@ -193,10 +193,7 @@ export class Policy {
     return new Policy((fn) => {
       // Compose: outer wraps inner
       // When outer calls its "fn", that fn is actually inner's execution
-      return compose(
-        { execute: outer },
-        { execute: inner }
-      ).execute(fn);
+      return compose({ execute: outer }, { execute: inner }).execute(fn);
     });
   }
 
@@ -224,10 +221,7 @@ export class Policy {
     const secondary = otherPolicy._executor;
 
     return new Policy((fn) => {
-      return fallback(
-        { execute: primary },
-        { execute: secondary }
-      ).execute(fn);
+      return fallback({ execute: primary }, { execute: secondary }).execute(fn);
     });
   }
 
@@ -255,10 +249,7 @@ export class Policy {
     const second = otherPolicy._executor;
 
     return new Policy((fn) => {
-      return race(
-        { execute: first },
-        { execute: second }
-      ).execute(fn);
+      return race({ execute: first }, { execute: second }).execute(fn);
     });
   }
 

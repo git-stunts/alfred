@@ -7,7 +7,7 @@ export class SystemClock {
   }
 
   async sleep(ms) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       const timer = setTimeout(resolve, ms);
       if (typeof timer === 'object' && typeof timer.unref === 'function') {
         timer.unref();
@@ -39,10 +39,10 @@ export class TestClock {
    * @returns {Promise<void>}
    */
   sleep(ms) {
-    return new Promise(resolve => {
+    return new Promise((resolve) => {
       this._pendingTimers.push({
         triggerAt: this._time + ms,
-        resolve
+        resolve,
       });
       // Sort by trigger time
       this._pendingTimers.sort((a, b) => a.triggerAt - b.triggerAt);

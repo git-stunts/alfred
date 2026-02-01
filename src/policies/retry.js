@@ -39,7 +39,7 @@ const DEFAULT_OPTIONS = {
   delay: 1000,
   maxDelay: 30000,
   backoff: 'constant',
-  jitter: 'none'
+  jitter: 'none',
 };
 
 function calculateBackoff(strategy, baseDelay, attempt) {
@@ -78,7 +78,7 @@ class RetryExecutor {
       this.prevDelay = actual;
       return actual;
     }
-    
+
     return Math.min(applyJitter(rawDelay), maxDelay);
   }
 
@@ -91,7 +91,7 @@ class RetryExecutor {
         return shouldStop.result;
       }
     }
-    
+
     throw new Error('Unexpected retry loop termination');
   }
 
@@ -107,22 +107,24 @@ class RetryExecutor {
       // But we need to calculate delay first
       const delay = this.calculateDelay(attempt);
       this.emitScheduled(attempt, delay, error);
-      
+
       if (this.options.onRetry) {
         this.options.onRetry(error, attempt, delay);
       }
-      
+
       await this.clock.sleep(delay);
       return null; // Continue loop
     }
   }
 
   emitSuccess(attempt, startTime) {
+    const endTime = this.clock.now();
     this.telemetry.emit({
       type: 'retry.success',
-      timestamp: this.clock.now(),
+      timestamp: endTime,
       attempt,
-      duration: this.clock.now() - startTime
+      duration: endTime - startTime,
+      metrics: { successes: 1 },
     });
   }
 
@@ -132,17 +134,20 @@ class RetryExecutor {
       timestamp: this.clock.now(),
       attempt,
       delay,
-      error
+      error,
+      metrics: { retries: 1 },
     });
   }
 
   handleFailure(error, attempt, startTime) {
+    const endTime = this.clock.now();
     this.telemetry.emit({
       type: 'retry.failure',
-      timestamp: this.clock.now(),
+      timestamp: endTime,
       attempt,
       error,
-      duration: this.clock.now() - startTime
+      duration: endTime - startTime,
+      metrics: { failures: 1 },
     });
 
     if (this.options.shouldRetry && !this.options.shouldRetry(error)) {
@@ -153,9 +158,9 @@ class RetryExecutor {
     if (attempt >= totalAttempts) {
       this.telemetry.emit({
         type: 'retry.exhausted',
-        timestamp: this.clock.now(),
+        timestamp: endTime,
         attempts: attempt,
-        error
+        error,
       });
       throw new RetryExhaustedError(attempt, error);
     }

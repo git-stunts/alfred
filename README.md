@@ -14,20 +14,22 @@ o88o     o8888o o888o o888o   d888b    `Y8bod8P' `Y8bod88P"
 [![NPM Version](https://img.shields.io/npm/v/@git-stunts/alfred)](https://www.npmjs.com/package/@git-stunts/alfred)
 [![CI](https://github.com/git-stunts/alfred/actions/workflows/ci.yml/badge.svg)](https://github.com/git-stunts/alfred/actions/workflows/ci.yml)
 
-> *"Why do we fall, Bruce?"*
+> _"Why do we fall, Bruce?"_
 >
-> *"So we can `retry({ backoff: 'exponential', jitter: 'decorrelated' })`."*
+> _"So we can `retry({ backoff: 'exponential', jitter: 'decorrelated' })`."_
 
-Resilience patterns for async operations. *Tuff 'nuff for most stuff!*
+Resilience patterns for async operations. _Tuff 'nuff for most stuff!_
 
 ## Installation
 
 ### NPM
+
 ```bash
 npm install @git-stunts/alfred
 ```
 
 ### JSR (Deno, Bun, Node)
+
 ```bash
 npx jsr add @git-stunts/alfred
 ```
@@ -35,6 +37,7 @@ npx jsr add @git-stunts/alfred
 ## Multi-Runtime Support
 
 Alfred is designed to be platform-agnostic and is tested against:
+
 - **Node.js** (>= 20.0.0)
 - **Bun** (>= 1.0.0)
 - **Deno** (>= 1.35.0)
@@ -47,10 +50,11 @@ It uses standard Web APIs (AbortController, AbortSignal) and provides runtime-aw
 import { retry, circuitBreaker, timeout, compose } from '@git-stunts/alfred';
 
 // Simple retry with exponential backoff
-const data = await retry(
-  () => fetch('https://api.example.com/data'),
-  { retries: 3, backoff: 'exponential', delay: 100 }
-);
+const data = await retry(() => fetch('https://api.example.com/data'), {
+  retries: 3,
+  backoff: 'exponential',
+  delay: 100,
+});
 
 // Circuit breaker - fail fast when service is down
 const breaker = circuitBreaker({ threshold: 5, duration: 60000 });
@@ -84,13 +88,13 @@ await retry(() => mightFail(), {
   retries: 5,
   backoff: 'exponential',
   delay: 100,
-  maxDelay: 10000
+  maxDelay: 10000,
 });
 
 // Only retry specific errors
 await retry(() => mightFail(), {
   retries: 3,
-  shouldRetry: (err) => err.code === 'ECONNREFUSED'
+  shouldRetry: (err) => err.code === 'ECONNREFUSED',
 });
 
 // With jitter to prevent thundering herd
@@ -98,21 +102,21 @@ await retry(() => mightFail(), {
   retries: 3,
   backoff: 'exponential',
   delay: 100,
-  jitter: 'full' // or 'equal' or 'decorrelated'
+  jitter: 'full', // or 'equal' or 'decorrelated'
 });
 ```
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `retries` | `number` | `3` | Maximum retry attempts |
-| `delay` | `number` | `1000` | Base delay in milliseconds |
-| `maxDelay` | `number` | `30000` | Maximum delay cap |
-| `backoff` | `'constant' \| 'linear' \| 'exponential'` | `'constant'` | Backoff strategy |
-| `jitter` | `'none' \| 'full' \| 'equal' \| 'decorrelated'` | `'none'` | Jitter strategy |
-| `shouldRetry` | `(error) => boolean` | `() => true` | Predicate to filter retryable errors |
-| `onRetry` | `(error, attempt, delay) => void` | - | Callback on each retry |
+| Option        | Type                                            | Default      | Description                          |
+| ------------- | ----------------------------------------------- | ------------ | ------------------------------------ |
+| `retries`     | `number`                                        | `3`          | Maximum retry attempts               |
+| `delay`       | `number`                                        | `1000`       | Base delay in milliseconds           |
+| `maxDelay`    | `number`                                        | `30000`      | Maximum delay cap                    |
+| `backoff`     | `'constant' \| 'linear' \| 'exponential'`       | `'constant'` | Backoff strategy                     |
+| `jitter`      | `'none' \| 'full' \| 'equal' \| 'decorrelated'` | `'none'`     | Jitter strategy                      |
+| `shouldRetry` | `(error) => boolean`                            | `() => true` | Predicate to filter retryable errors |
+| `onRetry`     | `(error, attempt, delay) => void`               | -            | Callback on each retry               |
 
 ### `circuitBreaker(options)`
 
@@ -122,11 +126,11 @@ Fails fast when a service is degraded, preventing cascade failures.
 import { circuitBreaker } from '@git-stunts/alfred';
 
 const breaker = circuitBreaker({
-  threshold: 5,      // Open after 5 failures
-  duration: 60000,   // Stay open for 60 seconds
+  threshold: 5, // Open after 5 failures
+  duration: 60000, // Stay open for 60 seconds
   onOpen: () => console.log('Circuit opened!'),
   onClose: () => console.log('Circuit closed!'),
-  onHalfOpen: () => console.log('Testing recovery...')
+  onHalfOpen: () => console.log('Testing recovery...'),
 });
 
 // Circuit has three states:
@@ -145,15 +149,15 @@ try {
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `threshold` | `number` | required | Failures before opening |
-| `duration` | `number` | required | How long to stay open (ms) |
-| `successThreshold` | `number` | `1` | Successes to close from half-open |
-| `shouldTrip` | `(error) => boolean` | `() => true` | Which errors count as failures |
-| `onOpen` | `() => void` | - | Called when circuit opens |
-| `onClose` | `() => void` | - | Called when circuit closes |
-| `onHalfOpen` | `() => void` | - | Called when entering half-open |
+| Option             | Type                 | Default      | Description                       |
+| ------------------ | -------------------- | ------------ | --------------------------------- |
+| `threshold`        | `number`             | required     | Failures before opening           |
+| `duration`         | `number`             | required     | How long to stay open (ms)        |
+| `successThreshold` | `number`             | `1`          | Successes to close from half-open |
+| `shouldTrip`       | `(error) => boolean` | `() => true` | Which errors count as failures    |
+| `onOpen`           | `() => void`         | -            | Called when circuit opens         |
+| `onClose`          | `() => void`         | -            | Called when circuit closes        |
+| `onHalfOpen`       | `() => void`         | -            | Called when entering half-open    |
 
 ### `bulkhead(options)`
 
@@ -163,8 +167,8 @@ Limits the number of concurrent executions to prevent resource exhaustion.
 import { bulkhead } from '@git-stunts/alfred';
 
 const limiter = bulkhead({
-  limit: 10,       // Max 10 concurrent executions
-  queueLimit: 20   // Max 20 pending requests in queue
+  limit: 10, // Max 10 concurrent executions
+  queueLimit: 20, // Max 20 pending requests in queue
 });
 
 // Returns an object with:
@@ -183,10 +187,10 @@ console.log(`Current load: ${limiter.stats.active} active tasks`);
 
 **Options:**
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `limit` | `number` | required | Maximum concurrent executions |
-| `queueLimit` | `number` | `0` | Maximum pending requests in queue |
+| Option       | Type     | Default  | Description                       |
+| ------------ | -------- | -------- | --------------------------------- |
+| `limit`      | `number` | required | Maximum concurrent executions     |
+| `queueLimit` | `number` | `0`      | Maximum pending requests in queue |
 
 ### `timeout(ms, options)`
 
@@ -200,7 +204,7 @@ const result = await timeout(5000, () => slowOperation());
 
 // With callback
 const result = await timeout(5000, () => slowOperation(), {
-  onTimeout: (elapsed) => console.log(`Timed out after ${elapsed}ms`)
+  onTimeout: (elapsed) => console.log(`Timed out after ${elapsed}ms`),
 });
 ```
 
@@ -231,10 +235,10 @@ Combines multiple policies. Policies execute from left to right (outermost to in
 import { compose, retry, circuitBreaker, timeout } from '@git-stunts/alfred';
 
 const resilient = compose(
-  timeout(30000),                                    // Total timeout
-  retry({ retries: 3, backoff: 'exponential' }),     // Retry failures
+  timeout(30000), // Total timeout
+  retry({ retries: 3, backoff: 'exponential' }), // Retry failures
   circuitBreaker({ threshold: 5, duration: 60000 }), // Fail fast if broken
-  bulkhead({ limit: 5, queueLimit: 10 })             // Limit concurrency
+  bulkhead({ limit: 5, queueLimit: 10 }) // Limit concurrency
 );
 
 // Execution order:
@@ -249,23 +253,15 @@ await resilient.execute(() => riskyOperation());
 Alfred provides a composable telemetry system to monitor policy behavior.
 
 ```javascript
-import {
-  Policy,
-  ConsoleSink,
-  InMemorySink,
-  MultiSink
-} from '@git-stunts/alfred';
+import { Policy, ConsoleSink, InMemorySink, MultiSink } from '@git-stunts/alfred';
 
 // 1. Create a sink (or multiple)
-const sink = new MultiSink([
-  new ConsoleSink(),
-  new InMemorySink()
-]);
+const sink = new MultiSink([new ConsoleSink(), new InMemorySink()]);
 
 // 2. Attach to policies
 const policy = Policy.retry({
   retries: 3,
-  telemetry: sink
+  telemetry: sink,
 });
 
 // All policies emit events:
@@ -297,7 +293,7 @@ test('retries with exponential backoff', async () => {
     retries: 3,
     backoff: 'exponential',
     delay: 1000,
-    clock
+    clock,
   });
 
   // First attempt fails immediately
@@ -319,11 +315,7 @@ test('retries with exponential backoff', async () => {
 ## Error Types
 
 ```javascript
-import {
-  RetryExhaustedError,
-  CircuitOpenError,
-  TimeoutError
-} from '@git-stunts/alfred';
+import { RetryExhaustedError, CircuitOpenError, TimeoutError } from '@git-stunts/alfred';
 
 try {
   await resilientOperation();

@@ -2,7 +2,6 @@
   "name": "@git-stunts/alfred",
   "version": "0.2.1",
   "description": "Why do we fall, Bruce? Production-grade resilience patterns for async operations.",
-
   "type": "module",
   "main": "src/index.js",
   "types": "./src/index.d.ts",

@@ -12,15 +12,11 @@ describe('circuitBreaker', () => {
     });
 
     it('requires threshold option', () => {
-      expect(() => circuitBreaker({ duration: 1000 })).toThrow(
-        'threshold is required'
-      );
+      expect(() => circuitBreaker({ duration: 1000 })).toThrow('threshold is required');
     });
 
     it('requires duration option', () => {
-      expect(() => circuitBreaker({ threshold: 3 })).toThrow(
-        'duration is required'
-      );
+      expect(() => circuitBreaker({ threshold: 3 })).toThrow('duration is required');
     });
   });
 
@@ -62,7 +58,7 @@ describe('circuitBreaker', () => {
       const breaker = circuitBreaker({
         threshold: 1,
         duration: 5000,
-        clock
+        clock,
       });
       const fn = vi.fn().mockRejectedValue(new Error('fail'));
 
@@ -85,7 +81,7 @@ describe('circuitBreaker', () => {
       const breaker = circuitBreaker({
         threshold: 1,
         duration: 5000,
-        clock
+        clock,
       });
       const fn = vi.fn().mockRejectedValueOnce(new Error('fail'));
 
@@ -109,7 +105,7 @@ describe('circuitBreaker', () => {
       const breaker = circuitBreaker({
         threshold: 1,
         duration: 5000,
-        clock
+        clock,
       });
       const fn = vi.fn().mockRejectedValue(new Error('fail'));
 
@@ -131,7 +127,7 @@ describe('circuitBreaker', () => {
         threshold: 1,
         duration: 5000,
         successThreshold: 2,
-        clock
+        clock,
       });
       const fn = vi.fn().mockRejectedValueOnce(new Error('fail'));
 
@@ -159,7 +155,7 @@ describe('circuitBreaker', () => {
       const breaker = circuitBreaker({
         threshold: 2,
         duration: 1000,
-        shouldTrip: (error) => error.status >= 500
+        shouldTrip: (error) => error.status >= 500,
       });
 
       const clientError = new Error('client error');
@@ -197,7 +193,7 @@ describe('circuitBreaker', () => {
         threshold: 1,
         duration: 5000,
         clock,
-        shouldTrip: (error) => error.status >= 500
+        shouldTrip: (error) => error.status >= 500,
       });
 
       const serverError = new Error('server error');
@@ -230,7 +226,7 @@ describe('circuitBreaker', () => {
       const breaker = circuitBreaker({
         threshold: 1,
         duration: 1000,
-        onOpen
+        onOpen,
       });
 
       const fn = vi.fn().mockRejectedValue(new Error('fail'));
@@ -247,7 +243,7 @@ describe('circuitBreaker', () => {
         threshold: 1,
         duration: 5000,
         clock,
-        onClose
+        onClose,
       });
 
       const fn = vi.fn().mockRejectedValueOnce(new Error('fail'));
@@ -272,7 +268,7 @@ describe('circuitBreaker', () => {
         threshold: 1,
         duration: 5000,
         clock,
-        onHalfOpen
+        onHalfOpen,
       });
 
       const fn = vi.fn().mockRejectedValueOnce(new Error('fail'));
@@ -300,7 +296,7 @@ describe('circuitBreaker', () => {
         clock,
         onOpen: () => callOrder.push('onOpen'),
         onHalfOpen: () => callOrder.push('onHalfOpen'),
-        onClose: () => callOrder.push('onClose')
+        onClose: () => callOrder.push('onClose'),
       });
 
       const fn = vi.fn();
@@ -358,7 +354,7 @@ describe('circuitBreaker', () => {
       const breaker = circuitBreaker({
         threshold: 2,
         duration: 5000,
-        clock
+        clock,
       });
 
       const fn = vi.fn().mockRejectedValue(new Error('fail'));

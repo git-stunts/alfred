@@ -1,4 +1,3 @@
-
 import { retry, circuitBreaker, timeout, Policy } from '../src/index.js';
 
 const log = (msg) => console.log(`[SMOKE] ${msg}`);
@@ -16,11 +15,14 @@ async function main() {
   // 1. Test Retry
   let attempts = 0;
   try {
-    const result = await retry(async () => {
-      attempts++;
-      if (attempts < 3) throw new Error('fail');
-      return 'success';
-    }, { retries: 3, delay: 10 }); // Short delay for test
+    const result = await retry(
+      async () => {
+        attempts++;
+        if (attempts < 3) throw new Error('fail');
+        return 'success';
+      },
+      { retries: 3, delay: 10 }
+    ); // Short delay for test
     assert(result === 'success', 'Retry result match');
     assert(attempts === 3, `Retry attempts (${attempts})`);
   } catch (e) {
@@ -36,7 +38,7 @@ async function main() {
   } catch {
     // Expected
   }
-  
+
   try {
     await breaker.execute(() => Promise.reject(new Error('fail')));
     assert(false, 'Breaker should have thrown');
@@ -53,23 +55,22 @@ async function main() {
 
   // 3. Test Timeout
   try {
-    await timeout(50, () => new Promise(resolve => setTimeout(resolve, 100)));
+    await timeout(50, () => new Promise((resolve) => setTimeout(resolve, 100)));
     assert(false, 'Timeout should have thrown');
   } catch (e) {
     assert(e.name === 'TimeoutError', 'Timeout threw TimeoutError');
   }
 
   // 4. Test Composition
-  const policy = Policy.retry({ retries: 1, delay: 10 })
-    .wrap(Policy.timeout(100));
-  
+  const policy = Policy.retry({ retries: 1, delay: 10 }).wrap(Policy.timeout(100));
+
   const compResult = await policy.execute(() => Promise.resolve('composed'));
   assert(compResult === 'composed', 'Composition works');
 
   log('All smoke tests passed! 🚀');
 }
 
-main().catch(e => {
+main().catch((e) => {
   console.error(e);
   process.exit(1);
 });

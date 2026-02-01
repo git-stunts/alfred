@@ -204,7 +204,7 @@ describe('timeout', () => {
 
       try {
         await timeout(50, fn, {
-          onTimeout: () => callOrder.push('onTimeout')
+          onTimeout: () => callOrder.push('onTimeout'),
         });
       } catch {
         callOrder.push('catch');

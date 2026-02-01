@@ -2,17 +2,17 @@
  * @module @git-stunts/alfred
  * @description Production-grade resilience patterns for async operations.
  * Includes Retry, Circuit Breaker, Timeout, and Bulkhead policies.
- * 
+ *
  * @example
  * ```ts
  * import { compose, retry, circuitBreaker, timeout } from "@git-stunts/alfred";
- * 
+ *
  * const policy = compose(
  *   retry({ retries: 3 }),
  *   circuitBreaker({ threshold: 5, duration: 60000 }),
  *   timeout(5000)
  * );
- * 
+ *
  * await policy.execute(() => fetch("https://api.example.com"));
  * ```
  */
@@ -116,6 +116,8 @@ export interface TelemetryEvent {
   type: string;
   /** Unix timestamp of the event. */
   timestamp: number;
+  /** Metric increments (counters) to be aggregated by MetricsSink. */
+  metrics?: Record<string, number>;
   /** Additional metadata (error, duration, attempts, etc.). */
   [key: string]: any;
 }
@@ -163,6 +165,34 @@ export class MultiSink implements TelemetrySink {
 }
 
 /**
+ * Sink that aggregates metrics in memory.
+ */
+export class MetricsSink implements TelemetrySink {
+  emit(event: TelemetryEvent): void;
+  /** Returns a snapshot of the current metrics. */
+  get stats(): {
+    retries: number;
+    failures: number;
+    successes: number;
+    circuitBreaks: number;
+    circuitRejections: number;
+    bulkheadRejections: number;
+    timeouts: number;
+    hedges: number;
+    latency: {
+      count: number;
+      sum: number;
+      min: number;
+      max: number;
+      avg: number;
+    };
+    [key: string]: number | { count: number; sum: number; min: number; max: number; avg: number };
+  };
+  /** Resets all metrics to zero. */
+  clear(): void;
+}
+
+/**
  * Error thrown when all retry attempts are exhausted.
  */
 export class RetryExhaustedError extends Error {
@@ -200,7 +230,7 @@ export class BulkheadRejectedError extends Error {
 
 /**
  * Executes an async function with configurable retry logic.
- * 
+ *
  * @param fn The async operation to execute.
  * @param options Retry configuration options.
  * @returns The result of the operation.
@@ -224,19 +254,23 @@ export interface CircuitBreaker {
 
 /**
  * Creates a Circuit Breaker policy.
- * 
+ *
  * @param options Configuration options.
  */
 export function circuitBreaker(options: CircuitBreakerOptions): CircuitBreaker;
 
 /**
  * Executes a function with a time limit.
- * 
+ *
  * @param ms Timeout duration in milliseconds.
  * @param fn The function to execute. Accepts an AbortSignal if defined.
  * @param options Configuration options.
  */
-export function timeout<T>(ms: Resolvable<number>, fn: ((signal: AbortSignal) => Promise<T>) | (() => Promise<T>), options?: TimeoutOptions): Promise<T>;
+export function timeout<T>(
+  ms: Resolvable<number>,
+  fn: ((signal: AbortSignal) => Promise<T>) | (() => Promise<T>),
+  options?: TimeoutOptions
+): Promise<T>;
 
 /**
  * Represents a Bulkhead instance.
@@ -254,7 +288,7 @@ export interface Bulkhead {
 
 /**
  * Creates a Bulkhead policy for concurrency limiting.
- * 
+ *
  * @param options Configuration options.
  */
 export function bulkhead(options: BulkheadOptions): Bulkhead;
@@ -275,7 +309,7 @@ export function hedge(options: HedgeOptions): Hedge;
 /**
  * Composes multiple policies into a single executable policy.
  * Policies execute from left to right (outermost to innermost).
- * 
+ *
  * @param policies The policies to compose.
  */
 export function compose(...policies: any[]): { execute<T>(fn: () => Promise<T>): Promise<T> };
@@ -283,12 +317,18 @@ export function compose(...policies: any[]): { execute<T>(fn: () => Promise<T>):
 /**
  * Creates a fallback policy. If the primary policy fails, the secondary is executed.
  */
-export function fallback(primary: any, secondary: any): { execute<T>(fn: () => Promise<T>): Promise<T> };
+export function fallback(
+  primary: any,
+  secondary: any
+): { execute<T>(fn: () => Promise<T>): Promise<T> };
 
 /**
  * Creates a race policy. Executes both policies concurrently; the first to succeed wins.
  */
-export function race(primary: any, secondary: any): { execute<T>(fn: () => Promise<T>): Promise<T> };
+export function race(
+  primary: any,
+  secondary: any
+): { execute<T>(fn: () => Promise<T>): Promise<T> };
 
 /**
  * Fluent API for building resilience policies.

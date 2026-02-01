@@ -5,8 +5,9 @@
 
 /**
  * @typedef {Object} TelemetryEvent
- * @property {string} type - Event type (e.g. 'retry', 'circuit.open')
+ * @property {string} type - Event type (e.g. 'retry.failure', 'circuit.open')
  * @property {number} timestamp - Event timestamp
+ * @property {Record<string, number>} [metrics] - Metric increments (counters)
  * @property {Object} [metadata] - Additional event data
  */
 
@@ -71,5 +72,87 @@ export class MultiSink {
     for (const sink of this.sinks) {
       sink.emit(event);
     }
+  }
+}
+
+/**
+ * Sink that aggregates metrics in memory based on the `metrics` field in events.
+ * @implements {TelemetrySink}
+ */
+export class MetricsSink {
+  constructor() {
+    this.clear();
+  }
+
+  /**
+   * Processes a telemetry event and updates internal counters.
+   * @param {TelemetryEvent} event
+   */
+  emit(event) {
+    const { duration, metrics } = event;
+
+    if (metrics && typeof metrics === 'object') {
+      this._updateMetrics(metrics);
+    }
+
+    if (typeof duration === 'number' && Number.isFinite(duration) && duration >= 0) {
+      this._updateLatency(duration);
+    }
+  }
+
+  _updateMetrics(metrics) {
+    for (const [key, value] of Object.entries(metrics)) {
+      if (typeof value !== 'number') {
+        continue;
+      }
+
+      const current = this.metrics[key];
+      if (current === undefined || typeof current === 'number') {
+        this.metrics[key] = (current || 0) + value;
+      }
+    }
+  }
+
+  _updateLatency(ms) {
+    const { latency } = this.metrics;
+    latency.count++;
+    latency.sum += ms;
+    latency.min = Math.min(latency.min, ms);
+    latency.max = Math.max(latency.max, ms);
+  }
+
+  /**
+   * Returns a snapshot of the current metrics.
+   */
+  get stats() {
+    const { latency, ...rest } = this.metrics;
+    const hasData = latency.count > 0;
+
+    return {
+      ...rest,
+      latency: {
+        ...latency,
+        min: hasData ? latency.min : 0,
+        max: hasData ? latency.max : 0,
+        avg: hasData ? latency.sum / latency.count : 0,
+      },
+    };
+  }
+
+  /**
+   * Resets all metrics to zero.
+   */
+  clear() {
+    this.metrics = {
+      retries: 0,
+      failures: 0,
+      successes: 0,
+      circuitBreaks: 0,
+      circuitRejections: 0,
+      bulkheadRejections: 0,
+      timeouts: 0,
+      hedges: 0,
+      latency: { count: 0, sum: 0, min: Infinity, max: 0 },
+    };
   }
 }
