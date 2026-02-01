@@ -88,7 +88,10 @@ class CircuitBreakerPolicy {
     this._state = State.OPEN;
     this.openedAt = new Date(this.options.clock.now());
     this.options.onOpen?.();
-    this.emitEvent('circuit.open', { failureCount: this.failureCount });
+    this.emitEvent('circuit.open', { 
+      failureCount: this.failureCount,
+      metrics: { circuitBreaks: 1 }
+    });
   }
 
   close() {
@@ -116,7 +119,10 @@ class CircuitBreakerPolicy {
   }
 
   recordSuccess() {
-    this.emitEvent('circuit.success', { state: this._state });
+    this.emitEvent('circuit.success', { 
+      state: this._state,
+      metrics: { successes: 1 }
+    });
 
     if (this._state === State.HALF_OPEN) {
       this.successCount++;
@@ -135,7 +141,8 @@ class CircuitBreakerPolicy {
 
     this.emitEvent('circuit.failure', {
       error,
-      state: this._state
+      state: this._state,
+      metrics: { failures: 1 }
     });
 
     if (this._state === State.HALF_OPEN) {
@@ -156,7 +163,8 @@ class CircuitBreakerPolicy {
     if (this._state === State.OPEN) {
       this.emitEvent('circuit.reject', {
         openedAt: this.openedAt,
-        failureCount: this.failureCount
+        failureCount: this.failureCount,
+        metrics: { circuitRejections: 1 }
       });
       throw new CircuitOpenError(this.openedAt, this.failureCount);
     }

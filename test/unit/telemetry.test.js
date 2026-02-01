@@ -60,16 +60,15 @@ describe('Telemetry', () => {
   });
 
   describe('MetricsSink', () => {
-    it('counts events correctly', () => {
+    it('counts events correctly via semantic metrics', () => {
       const sink = new MetricsSink();
       
-      sink.emit({ type: 'retry.scheduled' });
-      sink.emit({ type: 'retry.failure' });
-      sink.emit({ type: 'circuit.open' });
-      sink.emit({ type: 'bulkhead.reject' });
-      sink.emit({ type: 'timeout' });
-      sink.emit({ type: 'hedge.attempt', index: 1 }); // Hedge
-      sink.emit({ type: 'hedge.attempt', index: 0 }); // Not hedge (primary)
+      sink.emit({ type: 'test', metrics: { retries: 1, failures: 1 } });
+      sink.emit({ type: 'test', metrics: { circuitBreaks: 1 } });
+      sink.emit({ type: 'test', metrics: { bulkheadRejections: 1 } });
+      sink.emit({ type: 'test', metrics: { timeouts: 1 } });
+      sink.emit({ type: 'test', metrics: { hedges: 1 } });
+      sink.emit({ type: 'test', metrics: { custom: 5 } });
       
       expect(sink.stats).toMatchObject({
         retries: 1,
@@ -77,7 +76,8 @@ describe('Telemetry', () => {
         circuitBreaks: 1,
         bulkheadRejections: 1,
         timeouts: 1,
-        hedges: 1
+        hedges: 1,
+        custom: 5
       });
     });
 
@@ -100,11 +100,11 @@ describe('Telemetry', () => {
 
     it('can be cleared', () => {
       const sink = new MetricsSink();
-      sink.emit({ type: 'timeout' });
-      expect(sink.stats.timeouts).toBe(1);
+      sink.emit({ type: 'test', metrics: { custom: 1 } });
+      expect(sink.stats.custom).toBe(1);
       
       sink.clear();
-      expect(sink.stats.timeouts).toBe(0);
+      expect(sink.stats.custom).toBeUndefined();
       expect(sink.stats.latency.count).toBe(0);
     });
   });

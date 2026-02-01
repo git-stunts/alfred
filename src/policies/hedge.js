@@ -48,7 +48,8 @@ export function hedge(options) {
       telemetry.emit({
         type: 'hedge.attempt',
         timestamp: startTime,
-        index
+        index,
+        metrics: index > 0 ? { hedges: 1 } : {}
       });
 
       return fn(controller.signal)
@@ -57,7 +58,8 @@ export function hedge(options) {
             type: 'hedge.success',
             timestamp: clock.now(),
             index,
-            duration: clock.now() - startTime
+            duration: clock.now() - startTime,
+            metrics: { successes: 1 }
           });
           return result;
         })
@@ -68,7 +70,8 @@ export function hedge(options) {
               type: 'hedge.failure',
               timestamp: clock.now(),
               index,
-              error
+              error,
+              metrics: { failures: 1 }
             });
           }
           throw error;

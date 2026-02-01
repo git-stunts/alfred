@@ -94,13 +94,22 @@ class BulkheadPolicy {
       });
 
       try {
-        return await fn();
-      } finally {
-        this.active--;
+        const result = await fn();
         this.emitEvent('bulkhead.complete', {
           active: this.active,
-          pending: this.queue.length
+          pending: this.queue.length,
+          metrics: { successes: 1 }
         });
+        return result;
+      } catch (error) {
+        this.emitEvent('bulkhead.complete', {
+          active: this.active,
+          pending: this.queue.length,
+          metrics: { failures: 1 }
+        });
+        throw error;
+      } finally {
+        this.active--;
         this.processQueue();
       }
     }
@@ -118,7 +127,8 @@ class BulkheadPolicy {
 
     this.emitEvent('bulkhead.reject', {
       active: this.active,
-      pending: this.queue.length
+      pending: this.queue.length,
+      metrics: { bulkheadRejections: 1 }
     });
     throw new BulkheadRejectedError(limit, queueLimit);
   }

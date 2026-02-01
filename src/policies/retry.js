@@ -122,7 +122,8 @@ class RetryExecutor {
       type: 'retry.success',
       timestamp: this.clock.now(),
       attempt,
-      duration: this.clock.now() - startTime
+      duration: this.clock.now() - startTime,
+      metrics: { successes: 1 }
     });
   }
 
@@ -132,7 +133,8 @@ class RetryExecutor {
       timestamp: this.clock.now(),
       attempt,
       delay,
-      error
+      error,
+      metrics: { retries: 1 }
     });
   }
 
@@ -142,7 +144,8 @@ class RetryExecutor {
       timestamp: this.clock.now(),
       attempt,
       error,
-      duration: this.clock.now() - startTime
+      duration: this.clock.now() - startTime,
+      metrics: { failures: 1 }
     });
 
     if (this.options.shouldRetry && !this.options.shouldRetry(error)) {

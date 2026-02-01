@@ -116,6 +116,8 @@ export interface TelemetryEvent {
   type: string;
   /** Unix timestamp of the event. */
   timestamp: number;
+  /** Metric increments (counters) to be aggregated by MetricsSink. */
+  metrics?: Record<string, number>;
   /** Additional metadata (error, duration, attempts, etc.). */
   [key: string]: any;
 }

@@ -5,8 +5,9 @@
 
 /**
  * @typedef {Object} TelemetryEvent
- * @property {string} type - Event type (e.g. 'retry', 'circuit.open')
+ * @property {string} type - Event type (e.g. 'retry.failure', 'circuit.open')
  * @property {number} timestamp - Event timestamp
+ * @property {Record<string, number>} [metrics] - Metric increments (counters)
  * @property {Object} [metadata] - Additional event data
  */
 
@@ -74,22 +75,8 @@ export class MultiSink {
   }
 }
 
-// Map event types to metric counters
-const EVENT_MAP = {
-  'retry.scheduled': 'retries',
-  'retry.failure': 'failures',
-  'retry.success': 'successes',
-  'circuit.failure': 'failures',
-  'circuit.success': 'successes',
-  'circuit.open': 'circuitBreaks',
-  'bulkhead.reject': 'bulkheadRejections',
-  'timeout': 'timeouts',
-  'hedge.failure': 'failures',
-  'hedge.success': 'successes'
-};
-
 /**
- * Sink that aggregates metrics in memory.
+ * Sink that aggregates metrics in memory based on the `metrics` field in events.
  * @implements {TelemetrySink}
  */
 export class MetricsSink {
@@ -102,20 +89,20 @@ export class MetricsSink {
    * @param {TelemetryEvent} event 
    */
   emit(event) {
-    const { type, duration } = event;
+    const { duration, metrics } = event;
 
+    // 1. Handle explicit metric increments attached to the event
+    if (metrics && typeof metrics === 'object') {
+      for (const [key, value] of Object.entries(metrics)) {
+        if (typeof value === 'number') {
+          this.metrics[key] = (this.metrics[key] || 0) + value;
+        }
+      }
+    }
+
+    // 2. Handle Latency (special case for histogram/stats)
     if (typeof duration === 'number') {
       this._updateLatency(duration);
-    }
-
-    if (type === 'hedge.attempt' && event.index > 0) {
-      this.metrics.hedges++;
-      return;
-    }
-
-    const counter = EVENT_MAP[type];
-    if (counter) {
-      this.metrics[counter]++;
     }
   }
 
@@ -131,11 +118,11 @@ export class MetricsSink {
    * Returns a snapshot of the current metrics.
    */
   get stats() {
-    const { latency } = this.metrics;
+    const { latency, ...rest } = this.metrics;
     const avg = latency.count > 0 ? latency.sum / latency.count : 0;
     
     return {
-      ...this.metrics,
+      ...rest,
       latency: {
         ...latency,
         avg
@@ -148,13 +135,6 @@ export class MetricsSink {
    */
   clear() {
     this.metrics = {
-      retries: 0,
-      failures: 0,
-      successes: 0,
-      circuitBreaks: 0,
-      bulkheadRejections: 0,
-      timeouts: 0,
-      hedges: 0,
       latency: { count: 0, sum: 0, min: Infinity, max: 0 }
     };
   }

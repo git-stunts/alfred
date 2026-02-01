@@ -65,7 +65,8 @@ export async function timeout(ms, fn, options = {}) {
         type: 'timeout',
         timestamp: Date.now(),
         timeout: timeoutMs,
-        elapsed
+        elapsed,
+        metrics: { timeouts: 1, failures: 1 }
       });
 
       reject(new TimeoutError(timeoutMs, elapsed));
