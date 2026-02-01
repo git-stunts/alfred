@@ -158,7 +158,7 @@ class RetryExecutor {
     if (attempt >= totalAttempts) {
       this.telemetry.emit({
         type: 'retry.exhausted',
-        timestamp: this.clock.now(),
+        timestamp: endTime,
         attempts: attempt,
         error,
       });

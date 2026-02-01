@@ -37,6 +37,7 @@ export interface BulkheadOptions {
 export interface TelemetryEvent {
   type: string;
   timestamp: number;
+  metrics?: Record<string, number>;
   [key: string]: any;
 }
 

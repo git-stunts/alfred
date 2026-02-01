@@ -137,6 +137,14 @@ export class MetricsSink {
    */
   clear() {
     this.metrics = {
+      retries: 0,
+      failures: 0,
+      successes: 0,
+      circuitBreaks: 0,
+      circuitRejections: 0,
+      bulkheadRejections: 0,
+      timeouts: 0,
+      hedges: 0,
       latency: { count: 0, sum: 0, min: Infinity, max: 0 },
     };
   }
