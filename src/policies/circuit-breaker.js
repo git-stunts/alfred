@@ -11,7 +11,7 @@ import { resolve } from '../utils/resolvable.js';
 const State = {
   CLOSED: 'CLOSED',
   OPEN: 'OPEN',
-  HALF_OPEN: 'HALF_OPEN'
+  HALF_OPEN: 'HALF_OPEN',
 };
 
 /**
@@ -44,7 +44,7 @@ class CircuitBreakerPolicy {
       onClose,
       onHalfOpen,
       clock = new SystemClock(),
-      telemetry = new NoopSink()
+      telemetry = new NoopSink(),
     } = options;
 
     if (threshold === undefined || threshold === null) {
@@ -63,7 +63,7 @@ class CircuitBreakerPolicy {
       onClose,
       onHalfOpen,
       clock,
-      telemetry
+      telemetry,
     };
 
     this._state = State.CLOSED;
@@ -80,7 +80,7 @@ class CircuitBreakerPolicy {
     this.options.telemetry.emit({
       type,
       timestamp: this.options.clock.now(),
-      ...data
+      ...data,
     });
   }
 
@@ -88,9 +88,9 @@ class CircuitBreakerPolicy {
     this._state = State.OPEN;
     this.openedAt = new Date(this.options.clock.now());
     this.options.onOpen?.();
-    this.emitEvent('circuit.open', { 
+    this.emitEvent('circuit.open', {
       failureCount: this.failureCount,
-      metrics: { circuitBreaks: 1 }
+      metrics: { circuitBreaks: 1 },
     });
   }
 
@@ -119,9 +119,9 @@ class CircuitBreakerPolicy {
   }
 
   recordSuccess() {
-    this.emitEvent('circuit.success', { 
+    this.emitEvent('circuit.success', {
       state: this._state,
-      metrics: { successes: 1 }
+      metrics: { successes: 1 },
     });
 
     if (this._state === State.HALF_OPEN) {
@@ -142,7 +142,7 @@ class CircuitBreakerPolicy {
     this.emitEvent('circuit.failure', {
       error,
       state: this._state,
-      metrics: { failures: 1 }
+      metrics: { failures: 1 },
     });
 
     if (this._state === State.HALF_OPEN) {
@@ -164,7 +164,7 @@ class CircuitBreakerPolicy {
       this.emitEvent('circuit.reject', {
         openedAt: this.openedAt,
         failureCount: this.failureCount,
-        metrics: { circuitRejections: 1 }
+        metrics: { circuitRejections: 1 },
       });
       throw new CircuitOpenError(this.openedAt, this.failureCount);
     }
@@ -193,6 +193,6 @@ export function circuitBreaker(options) {
     execute: (fn) => policy.execute(fn),
     get state() {
       return policy.state;
-    }
+    },
   };
 }

@@ -6,10 +6,7 @@ import { RetryExhaustedError, TimeoutError } from '../../src/errors.js';
 describe('Policy (fluent API)', () => {
   describe('Policy.retry()', () => {
     it('creates working retry policy', async () => {
-      const fn = vi
-        .fn()
-        .mockRejectedValueOnce(new Error('fail'))
-        .mockResolvedValue('success');
+      const fn = vi.fn().mockRejectedValueOnce(new Error('fail')).mockResolvedValue('success');
 
       const clock = new TestClock();
       const policy = Policy.retry({ retries: 2, delay: 100, clock });
@@ -62,8 +59,7 @@ describe('Policy (fluent API)', () => {
     });
 
     it('throws TimeoutError when exceeded', async () => {
-      const fn = () =>
-        new Promise((resolve) => setTimeout(() => resolve('slow'), 200));
+      const fn = () => new Promise((resolve) => setTimeout(() => resolve('slow'), 200));
       const policy = Policy.timeout(50);
 
       await expect(policy.execute(fn)).rejects.toThrow(TimeoutError);
@@ -132,13 +128,7 @@ describe('Policy (fluent API)', () => {
       const result = await composed.execute(fn);
 
       expect(result).toBe('result');
-      expect(callOrder).toEqual([
-        'outer-start',
-        'inner-start',
-        'fn',
-        'inner-end',
-        'outer-end'
-      ]);
+      expect(callOrder).toEqual(['outer-start', 'inner-start', 'fn', 'inner-end', 'outer-end']);
     });
 
     it('retry wraps timeout correctly', async () => {
@@ -150,9 +140,7 @@ describe('Policy (fluent API)', () => {
         .mockResolvedValue('fast');
 
       const clock = new TestClock();
-      const policy = Policy.retry({ retries: 2, delay: 100, clock }).wrap(
-        Policy.timeout(50)
-      );
+      const policy = Policy.retry({ retries: 2, delay: 100, clock }).wrap(Policy.timeout(50));
 
       // First attempt will timeout, then retry should succeed
       const resultPromise = policy.execute(fn);
@@ -187,15 +175,7 @@ describe('Policy (fluent API)', () => {
         return 'result';
       });
 
-      expect(callOrder).toEqual([
-        'A-start',
-        'B-start',
-        'C-start',
-        'fn',
-        'C-end',
-        'B-end',
-        'A-end'
-      ]);
+      expect(callOrder).toEqual(['A-start', 'B-start', 'C-start', 'fn', 'C-end', 'B-end', 'A-end']);
     });
   });
 
@@ -229,9 +209,7 @@ describe('Policy (fluent API)', () => {
 
     it('chains multiple fallbacks', async () => {
       const first = new Policy(() => Promise.reject(new Error('first failed')));
-      const second = new Policy(() =>
-        Promise.reject(new Error('second failed'))
-      );
+      const second = new Policy(() => Promise.reject(new Error('second failed')));
       const third = new Policy((fn) => fn());
 
       const policy = first.or(second).or(third);
@@ -246,8 +224,7 @@ describe('Policy (fluent API)', () => {
   describe('.race() concurrent execution', () => {
     it('runs concurrently and returns first success', async () => {
       const slow = new Policy(
-        () =>
-          new Promise((resolve) => setTimeout(() => resolve('slow'), 100))
+        () => new Promise((resolve) => setTimeout(() => resolve('slow'), 100))
       );
       const fast = new Policy(() => Promise.resolve('fast'));
 
@@ -260,12 +237,9 @@ describe('Policy (fluent API)', () => {
     });
 
     it('returns success even if other fails', async () => {
-      const failing = new Policy(() =>
-        Promise.reject(new Error('failed'))
-      );
+      const failing = new Policy(() => Promise.reject(new Error('failed')));
       const succeeding = new Policy(
-        () =>
-          new Promise((resolve) => setTimeout(() => resolve('success'), 50))
+        () => new Promise((resolve) => setTimeout(() => resolve('success'), 50))
       );
 
       const policy = failing.race(succeeding);
@@ -277,12 +251,8 @@ describe('Policy (fluent API)', () => {
     });
 
     it('throws if both fail', async () => {
-      const failing1 = new Policy(() =>
-        Promise.reject(new Error('fail 1'))
-      );
-      const failing2 = new Policy(() =>
-        Promise.reject(new Error('fail 2'))
-      );
+      const failing1 = new Policy(() => Promise.reject(new Error('fail 1')));
+      const failing2 = new Policy(() => Promise.reject(new Error('fail 2')));
 
       const policy = failing1.race(failing2);
       const fn = vi.fn();
@@ -296,9 +266,7 @@ describe('Policy (fluent API)', () => {
       const clock = new TestClock();
 
       // Primary: retry with timeout that will fail
-      const primary = Policy.retry({ retries: 1, delay: 100, clock }).wrap(
-        Policy.timeout(30)
-      );
+      const primary = Policy.retry({ retries: 1, delay: 100, clock }).wrap(Policy.timeout(30));
 
       // Fallback: simple noop
       const fallbackPolicy = Policy.noop();
@@ -311,9 +279,7 @@ describe('Policy (fluent API)', () => {
         callCount++;
         if (callCount <= 2) {
           // First two calls (primary attempts) timeout
-          return new Promise((resolve) =>
-            setTimeout(() => resolve('too slow'), 200)
-          );
+          return new Promise((resolve) => setTimeout(() => resolve('too slow'), 200));
         }
         return Promise.resolve('fallback success');
       });
@@ -363,7 +329,7 @@ describe('Policy (fluent API)', () => {
         'fn',
         'C:after',
         'B:after',
-        'A:after'
+        'A:after',
       ]);
     });
 
@@ -375,14 +341,14 @@ describe('Policy (fluent API)', () => {
       const slowRetry = Policy.retry({
         retries: 2,
         delay: 500,
-        clock: clock1
+        clock: clock1,
       });
 
       // Fast retry
       const fastRetry = Policy.retry({
         retries: 1,
         delay: 50,
-        clock: clock2
+        clock: clock2,
       });
 
       const policy = slowRetry.race(fastRetry);
@@ -399,7 +365,7 @@ describe('Policy (fluent API)', () => {
       const resultPromise = policy.execute(fn);
 
       // Fast retry should win
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
       await clock2.advance(50);
 
       const result = await resultPromise;
@@ -459,9 +425,7 @@ describe('Policy (fluent API)', () => {
     });
 
     it('propagates errors from executor', async () => {
-      const policy = new Policy(() =>
-        Promise.reject(new Error('executor error'))
-      );
+      const policy = new Policy(() => Promise.reject(new Error('executor error')));
       const fn = vi.fn();
 
       await expect(policy.execute(fn)).rejects.toThrow('executor error');

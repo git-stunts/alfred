@@ -33,7 +33,7 @@
 export function compose(...policies) {
   if (policies.length === 0) {
     return {
-      execute: (fn) => fn()
+      execute: (fn) => fn(),
     };
   }
 
@@ -55,7 +55,7 @@ export function compose(...policies) {
       }
 
       return chain();
-    }
+    },
   };
 }
 
@@ -86,7 +86,7 @@ export function fallback(primary, secondary) {
       } catch {
         return await secondary.execute(fn);
       }
-    }
+    },
   };
 }
 
@@ -148,6 +148,6 @@ export function race(policyA, policyB) {
         policyA.execute(fn).then(handleSuccess, (e) => handleFailure(e, true));
         policyB.execute(fn).then(handleSuccess, (e) => handleFailure(e, false));
       });
-    }
+    },
   };
 }

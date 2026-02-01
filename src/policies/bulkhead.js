@@ -29,11 +29,11 @@ import { resolve as resolveValue } from '../utils/resolvable.js';
 
 class BulkheadPolicy {
   constructor(options) {
-    const { 
-      limit, 
-      queueLimit = 0, 
+    const {
+      limit,
+      queueLimit = 0,
       telemetry = new NoopSink(),
-      clock = new SystemClock() 
+      clock = new SystemClock(),
     } = options;
 
     if (limit <= 0) {
@@ -54,10 +54,10 @@ class BulkheadPolicy {
     if (this.active < limit && this.queue.length > 0) {
       const { fn, resolve: promiseResolve, reject } = this.queue.shift();
       this.active++;
-      
+
       this.emitEvent('bulkhead.execute', {
         active: this.active,
-        pending: this.queue.length
+        pending: this.queue.length,
       });
 
       Promise.resolve()
@@ -67,7 +67,7 @@ class BulkheadPolicy {
           this.active--;
           this.emitEvent('bulkhead.complete', {
             active: this.active,
-            pending: this.queue.length
+            pending: this.queue.length,
           });
           this.processQueue();
         });
@@ -78,7 +78,7 @@ class BulkheadPolicy {
     this.telemetry.emit({
       type,
       timestamp: this.clock.now(),
-      ...data
+      ...data,
     });
   }
 
@@ -90,7 +90,7 @@ class BulkheadPolicy {
       this.active++;
       this.emitEvent('bulkhead.execute', {
         active: this.active,
-        pending: this.queue.length
+        pending: this.queue.length,
       });
 
       try {
@@ -98,14 +98,14 @@ class BulkheadPolicy {
         this.emitEvent('bulkhead.complete', {
           active: this.active,
           pending: this.queue.length,
-          metrics: { successes: 1 }
+          metrics: { successes: 1 },
         });
         return result;
       } catch (error) {
         this.emitEvent('bulkhead.complete', {
           active: this.active,
           pending: this.queue.length,
-          metrics: { failures: 1 }
+          metrics: { failures: 1 },
         });
         throw error;
       } finally {
@@ -117,9 +117,9 @@ class BulkheadPolicy {
     if (this.queue.length < queueLimit) {
       this.emitEvent('bulkhead.queued', {
         active: this.active,
-        pending: this.queue.length + 1
+        pending: this.queue.length + 1,
       });
-      
+
       return new Promise((resolve, reject) => {
         this.queue.push({ fn, resolve, reject });
       });
@@ -128,16 +128,16 @@ class BulkheadPolicy {
     this.emitEvent('bulkhead.reject', {
       active: this.active,
       pending: this.queue.length,
-      metrics: { bulkheadRejections: 1 }
+      metrics: { bulkheadRejections: 1 },
     });
     throw new BulkheadRejectedError(limit, queueLimit);
   }
 
   get stats() {
-    return { 
-      active: this.active, 
-      pending: this.queue.length, 
-      available: Math.max(0, resolveValue(this.limit) - this.active) 
+    return {
+      active: this.active,
+      pending: this.queue.length,
+      available: Math.max(0, resolveValue(this.limit) - this.active),
     };
   }
 }
@@ -150,11 +150,11 @@ class BulkheadPolicy {
  */
 export function bulkhead(options) {
   const policy = new BulkheadPolicy(options);
-  
+
   return {
     execute: (fn) => policy.execute(fn),
     get stats() {
       return policy.stats;
-    }
+    },
   };
 }

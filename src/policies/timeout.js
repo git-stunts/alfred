@@ -60,13 +60,13 @@ export async function timeout(ms, fn, options = {}) {
       if (onTimeout) {
         onTimeout(elapsed);
       }
-      
+
       telemetry.emit({
         type: 'timeout',
         timestamp: Date.now(),
         timeout: timeoutMs,
         elapsed,
-        metrics: { timeouts: 1, failures: 1 }
+        metrics: { timeouts: 1, failures: 1 },
       });
 
       reject(new TimeoutError(timeoutMs, elapsed));

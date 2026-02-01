@@ -1,4 +1,3 @@
-
 import { describe, it, expect } from 'vitest';
 import { bulkhead } from '../../src/policies/bulkhead.js';
 import { BulkheadRejectedError } from '../../src/errors.js';
@@ -18,11 +17,7 @@ describe('bulkhead', () => {
       active--;
     };
 
-    await Promise.all([
-      policy.execute(task),
-      policy.execute(task),
-      policy.execute(task)
-    ]);
+    await Promise.all([policy.execute(task), policy.execute(task), policy.execute(task)]);
 
     expect(maxActive).toBe(1);
   });
@@ -39,11 +34,7 @@ describe('bulkhead', () => {
       active--;
     };
 
-    await Promise.all([
-      policy.execute(task),
-      policy.execute(task),
-      policy.execute(task)
-    ]);
+    await Promise.all([policy.execute(task), policy.execute(task), policy.execute(task)]);
 
     expect(maxActive).toBe(2);
   });
@@ -58,11 +49,7 @@ describe('bulkhead', () => {
       await delay(50);
     };
 
-    await Promise.all([
-      policy.execute(task),
-      policy.execute(task),
-      policy.execute(task)
-    ]);
+    await Promise.all([policy.execute(task), policy.execute(task), policy.execute(task)]);
 
     // First starts immediately (0-10ms)
     // Second waits 50ms
@@ -74,10 +61,10 @@ describe('bulkhead', () => {
 
   it('rejects when queue is full', async () => {
     const policy = bulkhead({ limit: 1, queueLimit: 0 });
-    
+
     // First takes the slot
     const p1 = policy.execute(() => delay(50));
-    
+
     // Second tries to queue but can't
     const p2 = policy.execute(() => delay(50));
 
@@ -88,13 +75,13 @@ describe('bulkhead', () => {
   it('reports status', () => {
     const policy = bulkhead({ limit: 2, queueLimit: 2 });
     expect(policy.stats).toEqual({ active: 0, pending: 0, available: 2 });
-    
+
     policy.execute(() => delay(50));
     expect(policy.stats).toEqual({ active: 1, pending: 0, available: 1 });
-    
+
     policy.execute(() => delay(50));
     expect(policy.stats).toEqual({ active: 2, pending: 0, available: 0 });
-    
+
     policy.execute(() => delay(50));
     expect(policy.stats).toEqual({ active: 2, pending: 1, available: 0 });
   });

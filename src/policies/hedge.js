@@ -22,11 +22,11 @@ import { resolve } from '../utils/resolvable.js';
 class HedgeExecutor {
   constructor(fn, options) {
     this.fn = fn;
-    this.options = { 
-      telemetry: new NoopSink(), 
-      clock: new SystemClock(), 
-      maxHedges: 1, 
-      ...options 
+    this.options = {
+      telemetry: new NoopSink(),
+      clock: new SystemClock(),
+      maxHedges: 1,
+      ...options,
     };
     this.abortControllers = [];
   }
@@ -55,28 +55,28 @@ class HedgeExecutor {
     const controller = new AbortController();
     this.abortControllers.push(controller);
     const { clock, telemetry } = this.options;
-    
+
     const startTime = clock.now();
     telemetry.emit({
       type: 'hedge.attempt',
       timestamp: startTime,
       index,
-      metrics: index > 0 ? { hedges: 1 } : {}
+      metrics: index > 0 ? { hedges: 1 } : {},
     });
 
     return this.fn(controller.signal)
-      .then(result => {
+      .then((result) => {
         const endTime = clock.now();
         telemetry.emit({
           type: 'hedge.success',
           timestamp: endTime,
           index,
           duration: endTime - startTime,
-          metrics: { successes: 1 }
+          metrics: { successes: 1 },
         });
         return result;
       })
-      .catch(error => {
+      .catch((error) => {
         if (error.name !== 'AbortError') {
           const endTime = clock.now();
           telemetry.emit({
@@ -85,7 +85,7 @@ class HedgeExecutor {
             index,
             error,
             duration: endTime - startTime,
-            metrics: { failures: 1 }
+            metrics: { failures: 1 },
           });
         }
         throw error;
@@ -93,8 +93,7 @@ class HedgeExecutor {
   }
 
   scheduleHedge(index, delayMs) {
-    return this.options.clock.sleep(delayMs)
-      .then(() => this.createAttempt(index));
+    return this.options.clock.sleep(delayMs).then(() => this.createAttempt(index));
   }
 
   cancelAll() {
@@ -112,6 +111,6 @@ class HedgeExecutor {
  */
 export function hedge(options) {
   return {
-    execute: (fn) => new HedgeExecutor(fn, options).execute()
+    execute: (fn) => new HedgeExecutor(fn, options).execute(),
   };
 }

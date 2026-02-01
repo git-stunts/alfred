@@ -15,7 +15,7 @@ describe('compose', () => {
 
     it('executes single policy', async () => {
       const policy = {
-        execute: vi.fn((fn) => fn())
+        execute: vi.fn((fn) => fn()),
       };
       const composed = compose(policy);
       const fn = vi.fn().mockResolvedValue('result');
@@ -35,7 +35,7 @@ describe('compose', () => {
           const result = await fn();
           callOrder.push('outer-end');
           return result;
-        }
+        },
       };
 
       const innerPolicy = {
@@ -44,7 +44,7 @@ describe('compose', () => {
           const result = await fn();
           callOrder.push('inner-end');
           return result;
-        }
+        },
       };
 
       const composed = compose(outerPolicy, innerPolicy);
@@ -56,13 +56,7 @@ describe('compose', () => {
       const result = await composed.execute(fn);
 
       expect(result).toBe('result');
-      expect(callOrder).toEqual([
-        'outer-start',
-        'inner-start',
-        'fn',
-        'inner-end',
-        'outer-end'
-      ]);
+      expect(callOrder).toEqual(['outer-start', 'inner-start', 'fn', 'inner-end', 'outer-end']);
     });
 
     it('chains three policies in correct order', async () => {
@@ -74,14 +68,10 @@ describe('compose', () => {
           const result = await fn();
           callOrder.push(`${name}-end`);
           return result;
-        }
+        },
       });
 
-      const composed = compose(
-        makePolicy('first'),
-        makePolicy('second'),
-        makePolicy('third')
-      );
+      const composed = compose(makePolicy('first'), makePolicy('second'), makePolicy('third'));
 
       await composed.execute(async () => {
         callOrder.push('fn');
@@ -95,17 +85,17 @@ describe('compose', () => {
         'fn',
         'third-end',
         'second-end',
-        'first-end'
+        'first-end',
       ]);
     });
 
     it('propagates errors through the chain', async () => {
       const outerPolicy = {
-        execute: (fn) => fn()
+        execute: (fn) => fn(),
       };
 
       const innerPolicy = {
-        execute: (fn) => fn()
+        execute: (fn) => fn(),
       };
 
       const composed = compose(outerPolicy, innerPolicy);
@@ -123,11 +113,11 @@ describe('compose', () => {
           } catch {
             return 'fallback';
           }
-        }
+        },
       };
 
       const innerPolicy = {
-        execute: (fn) => fn()
+        execute: (fn) => fn(),
       };
 
       const composed = compose(outerPolicy, innerPolicy);
@@ -140,14 +130,14 @@ describe('compose', () => {
 
     it('allows inner policy to transform result', async () => {
       const outerPolicy = {
-        execute: (fn) => fn()
+        execute: (fn) => fn(),
       };
 
       const innerPolicy = {
         execute: async (fn) => {
           const result = await fn();
           return result.toUpperCase();
-        }
+        },
       };
 
       const composed = compose(outerPolicy, innerPolicy);
@@ -162,10 +152,10 @@ describe('compose', () => {
   describe('fallback()', () => {
     it('returns primary result when primary succeeds', async () => {
       const primary = {
-        execute: vi.fn((fn) => fn())
+        execute: vi.fn((fn) => fn()),
       };
       const secondary = {
-        execute: vi.fn((fn) => fn())
+        execute: vi.fn((fn) => fn()),
       };
 
       const policy = fallback(primary, secondary);
@@ -180,10 +170,10 @@ describe('compose', () => {
 
     it('tries secondary on primary failure', async () => {
       const primary = {
-        execute: vi.fn().mockRejectedValue(new Error('primary failed'))
+        execute: vi.fn().mockRejectedValue(new Error('primary failed')),
       };
       const secondary = {
-        execute: vi.fn((fn) => fn())
+        execute: vi.fn((fn) => fn()),
       };
 
       const policy = fallback(primary, secondary);
@@ -198,10 +188,10 @@ describe('compose', () => {
 
     it('throws secondary error if both fail', async () => {
       const primary = {
-        execute: vi.fn().mockRejectedValue(new Error('primary failed'))
+        execute: vi.fn().mockRejectedValue(new Error('primary failed')),
       };
       const secondary = {
-        execute: vi.fn().mockRejectedValue(new Error('secondary failed'))
+        execute: vi.fn().mockRejectedValue(new Error('secondary failed')),
       };
 
       const policy = fallback(primary, secondary);
@@ -217,13 +207,13 @@ describe('compose', () => {
         execute: (fn) => {
           capturedFns.push(fn);
           return Promise.reject(new Error('fail'));
-        }
+        },
       };
       const secondary = {
         execute: (fn) => {
           capturedFns.push(fn);
           return fn();
-        }
+        },
       };
 
       const policy = fallback(primary, secondary);
@@ -239,11 +229,10 @@ describe('compose', () => {
   describe('race()', () => {
     it('returns first success', async () => {
       const policyA = {
-        execute: () =>
-          new Promise((resolve) => setTimeout(() => resolve('slow'), 100))
+        execute: () => new Promise((resolve) => setTimeout(() => resolve('slow'), 100)),
       };
       const policyB = {
-        execute: () => Promise.resolve('fast')
+        execute: () => Promise.resolve('fast'),
       };
 
       const policy = race(policyA, policyB);
@@ -256,11 +245,10 @@ describe('compose', () => {
 
     it('returns policyA result if it wins', async () => {
       const policyA = {
-        execute: () => Promise.resolve('A wins')
+        execute: () => Promise.resolve('A wins'),
       };
       const policyB = {
-        execute: () =>
-          new Promise((resolve) => setTimeout(() => resolve('B'), 100))
+        execute: () => new Promise((resolve) => setTimeout(() => resolve('B'), 100)),
       };
 
       const policy = race(policyA, policyB);
@@ -273,11 +261,10 @@ describe('compose', () => {
 
     it('returns policyB result if it wins', async () => {
       const policyA = {
-        execute: () =>
-          new Promise((resolve) => setTimeout(() => resolve('A'), 100))
+        execute: () => new Promise((resolve) => setTimeout(() => resolve('A'), 100)),
       };
       const policyB = {
-        execute: () => Promise.resolve('B wins')
+        execute: () => Promise.resolve('B wins'),
       };
 
       const policy = race(policyA, policyB);
@@ -290,10 +277,10 @@ describe('compose', () => {
 
     it('returns success even if other fails', async () => {
       const policyA = {
-        execute: () => Promise.reject(new Error('A failed'))
+        execute: () => Promise.reject(new Error('A failed')),
       };
       const policyB = {
-        execute: () => Promise.resolve('B success')
+        execute: () => Promise.resolve('B success'),
       };
 
       const policy = race(policyA, policyB);
@@ -306,11 +293,10 @@ describe('compose', () => {
 
     it('returns success even if faster one fails', async () => {
       const policyA = {
-        execute: () => Promise.reject(new Error('fast failure'))
+        execute: () => Promise.reject(new Error('fast failure')),
       };
       const policyB = {
-        execute: () =>
-          new Promise((resolve) => setTimeout(() => resolve('slow success'), 50))
+        execute: () => new Promise((resolve) => setTimeout(() => resolve('slow success'), 50)),
       };
 
       const policy = race(policyA, policyB);
@@ -323,13 +309,11 @@ describe('compose', () => {
 
     it('throws first error if both fail', async () => {
       const policyA = {
-        execute: () => Promise.reject(new Error('A failed'))
+        execute: () => Promise.reject(new Error('A failed')),
       };
       const policyB = {
         execute: () =>
-          new Promise((_, reject) =>
-            setTimeout(() => reject(new Error('B failed')), 50)
-          )
+          new Promise((_, reject) => setTimeout(() => reject(new Error('B failed')), 50)),
       };
 
       const policy = race(policyA, policyB);
@@ -345,13 +329,13 @@ describe('compose', () => {
         execute: (fn) => {
           capturedFns.push(fn);
           return Promise.resolve('A');
-        }
+        },
       };
       const policyB = {
         execute: (fn) => {
           capturedFns.push(fn);
           return Promise.resolve('B');
-        }
+        },
       };
 
       const policy = race(policyA, policyB);
@@ -371,14 +355,14 @@ describe('compose', () => {
           startTimes.push(Date.now() - startTime);
           await new Promise((resolve) => setTimeout(resolve, 50));
           return 'A';
-        }
+        },
       };
       const policyB = {
         execute: async () => {
           startTimes.push(Date.now() - startTime);
           await new Promise((resolve) => setTimeout(resolve, 50));
           return 'B';
-        }
+        },
       };
 
       const policy = race(policyA, policyB);

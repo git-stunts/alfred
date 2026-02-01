@@ -86,7 +86,7 @@ export class MetricsSink {
 
   /**
    * Processes a telemetry event and updates internal counters.
-   * @param {TelemetryEvent} event 
+   * @param {TelemetryEvent} event
    */
   emit(event) {
     const { duration, metrics } = event;
@@ -120,15 +120,15 @@ export class MetricsSink {
   get stats() {
     const { latency, ...rest } = this.metrics;
     const hasData = latency.count > 0;
-    
+
     return {
       ...rest,
       latency: {
         ...latency,
         min: hasData ? latency.min : 0,
         max: hasData ? latency.max : 0,
-        avg: hasData ? latency.sum / latency.count : 0
-      }
+        avg: hasData ? latency.sum / latency.count : 0,
+      },
     };
   }
 
@@ -137,7 +137,7 @@ export class MetricsSink {
    */
   clear() {
     this.metrics = {
-      latency: { count: 0, sum: 0, min: Infinity, max: 0 }
+      latency: { count: 0, sum: 0, min: Infinity, max: 0 },
     };
   }
 }

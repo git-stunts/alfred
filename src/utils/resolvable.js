@@ -1,6 +1,6 @@
 /**
  * Resolves a value that might be dynamic.
- * 
+ *
  * @template T
  * @param {T | (() => T)} value - The value or a function returning the value.
  * @returns {T} The resolved value.

@@ -6,11 +6,11 @@
 // @ts-self-types="./index.d.ts"
 
 // Error types
-export { 
-  RetryExhaustedError, 
-  CircuitOpenError, 
+export {
+  RetryExhaustedError,
+  CircuitOpenError,
   TimeoutError,
-  BulkheadRejectedError 
+  BulkheadRejectedError,
 } from './errors.js';
 
 // Resilience policies
@@ -30,10 +30,4 @@ export { Policy, Policy as default } from './policy.js';
 export { SystemClock, TestClock } from './utils/clock.js';
 
 // Telemetry
-export { 
-  InMemorySink, 
-  ConsoleSink, 
-  NoopSink, 
-  MultiSink,
-  MetricsSink 
-} from './telemetry.js';
+export { InMemorySink, ConsoleSink, NoopSink, MultiSink, MetricsSink } from './telemetry.js';

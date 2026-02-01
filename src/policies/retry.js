@@ -39,7 +39,7 @@ const DEFAULT_OPTIONS = {
   delay: 1000,
   maxDelay: 30000,
   backoff: 'constant',
-  jitter: 'none'
+  jitter: 'none',
 };
 
 function calculateBackoff(strategy, baseDelay, attempt) {
@@ -78,7 +78,7 @@ class RetryExecutor {
       this.prevDelay = actual;
       return actual;
     }
-    
+
     return Math.min(applyJitter(rawDelay), maxDelay);
   }
 
@@ -91,7 +91,7 @@ class RetryExecutor {
         return shouldStop.result;
       }
     }
-    
+
     throw new Error('Unexpected retry loop termination');
   }
 
@@ -107,11 +107,11 @@ class RetryExecutor {
       // But we need to calculate delay first
       const delay = this.calculateDelay(attempt);
       this.emitScheduled(attempt, delay, error);
-      
+
       if (this.options.onRetry) {
         this.options.onRetry(error, attempt, delay);
       }
-      
+
       await this.clock.sleep(delay);
       return null; // Continue loop
     }
@@ -124,7 +124,7 @@ class RetryExecutor {
       timestamp: endTime,
       attempt,
       duration: endTime - startTime,
-      metrics: { successes: 1 }
+      metrics: { successes: 1 },
     });
   }
 
@@ -135,7 +135,7 @@ class RetryExecutor {
       attempt,
       delay,
       error,
-      metrics: { retries: 1 }
+      metrics: { retries: 1 },
     });
   }
 
@@ -147,7 +147,7 @@ class RetryExecutor {
       attempt,
       error,
       duration: endTime - startTime,
-      metrics: { failures: 1 }
+      metrics: { failures: 1 },
     });
 
     if (this.options.shouldRetry && !this.options.shouldRetry(error)) {
@@ -160,7 +160,7 @@ class RetryExecutor {
         type: 'retry.exhausted',
         timestamp: this.clock.now(),
         attempts: attempt,
-        error
+        error,
       });
       throw new RetryExhaustedError(attempt, error);
     }

@@ -101,7 +101,7 @@ describe('retry', () => {
         clock,
         onRetry: (error, attempt, delay) => {
           delays.push(delay);
-        }
+        },
       });
 
       // Yield to let retry loop run first attempt
@@ -140,7 +140,7 @@ describe('retry', () => {
         clock,
         onRetry: (error, attempt, delay) => {
           delays.push(delay);
-        }
+        },
       });
 
       for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -178,7 +178,7 @@ describe('retry', () => {
         clock,
         onRetry: (error, attempt, delay) => {
           delays.push(delay);
-        }
+        },
       });
 
       for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -217,7 +217,7 @@ describe('retry', () => {
         clock,
         onRetry: (error, attempt, delay) => {
           delays.push(delay);
-        }
+        },
       });
 
       for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -256,7 +256,7 @@ describe('retry', () => {
           clock,
           onRetry: (error, attempt, delay) => {
             delays.push(delay);
-          }
+          },
         });
 
         for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -298,7 +298,7 @@ describe('retry', () => {
           clock,
           onRetry: (error, attempt, delay) => {
             delays.push(delay);
-          }
+          },
         });
 
         for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -341,7 +341,7 @@ describe('retry', () => {
           clock,
           onRetry: (error, attempt, delay) => {
             delays.push(delay);
-          }
+          },
         });
 
         for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -371,17 +371,14 @@ describe('retry', () => {
       const retryableError = new Error('retryable');
       retryableError.code = 'ECONNREFUSED';
 
-      const fn = vi
-        .fn()
-        .mockRejectedValueOnce(retryableError)
-        .mockResolvedValue('success');
+      const fn = vi.fn().mockRejectedValueOnce(retryableError).mockResolvedValue('success');
 
       const clock = new TestClock();
       const resultPromise = retry(fn, {
         retries: 2,
         delay: 100,
         clock,
-        shouldRetry: (error) => error.code === 'ECONNREFUSED'
+        shouldRetry: (error) => error.code === 'ECONNREFUSED',
       });
 
       for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -403,7 +400,7 @@ describe('retry', () => {
       await expect(
         retry(fn, {
           retries: 3,
-          shouldRetry: (error) => error.code === 'ECONNREFUSED'
+          shouldRetry: (error) => error.code === 'ECONNREFUSED',
         })
       ).rejects.toThrow('not retryable');
 
@@ -418,7 +415,7 @@ describe('retry', () => {
       try {
         await retry(fn, {
           retries: 3,
-          shouldRetry: () => false
+          shouldRetry: () => false,
         });
         expect.fail('Should have thrown');
       } catch (e) {
@@ -446,7 +443,7 @@ describe('retry', () => {
         delay: 100,
         backoff: 'constant',
         clock,
-        onRetry
+        onRetry,
       });
 
       for (let i = 0; i < 20; i++) await Promise.resolve();
@@ -479,7 +476,7 @@ describe('retry', () => {
         await retry(fn, {
           retries: 3,
           onRetry,
-          shouldRetry: () => false
+          shouldRetry: () => false,
         });
       } catch {
         // Expected

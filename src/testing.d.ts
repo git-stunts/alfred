@@ -96,7 +96,11 @@ export interface CircuitBreaker {
 
 export function circuitBreaker(options: CircuitBreakerOptions): CircuitBreaker;
 
-export function timeout<T>(ms: number, fn: ((signal: AbortSignal) => Promise<T>) | (() => Promise<T>), options?: TimeoutOptions): Promise<T>;
+export function timeout<T>(
+  ms: number,
+  fn: ((signal: AbortSignal) => Promise<T>) | (() => Promise<T>),
+  options?: TimeoutOptions
+): Promise<T>;
 
 export interface Bulkhead {
   execute<T>(fn: () => Promise<T>): Promise<T>;
@@ -106,8 +110,14 @@ export interface Bulkhead {
 export function bulkhead(options: BulkheadOptions): Bulkhead;
 
 export function compose(...policies: any[]): { execute<T>(fn: () => Promise<T>): Promise<T> };
-export function fallback(primary: any, secondary: any): { execute<T>(fn: () => Promise<T>): Promise<T> };
-export function race(primary: any, secondary: any): { execute<T>(fn: () => Promise<T>): Promise<T> };
+export function fallback(
+  primary: any,
+  secondary: any
+): { execute<T>(fn: () => Promise<T>): Promise<T> };
+export function race(
+  primary: any,
+  secondary: any
+): { execute<T>(fn: () => Promise<T>): Promise<T> };
 
 export class Policy {
   constructor(executor: (fn: () => Promise<any>) => Promise<any>);
