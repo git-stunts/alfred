@@ -101,7 +101,7 @@ export class MetricsSink {
     }
 
     // 2. Handle Latency (special case for histogram/stats)
-    if (typeof duration === 'number') {
+    if (typeof duration === 'number' && Number.isFinite(duration) && duration >= 0) {
       this._updateLatency(duration);
     }
   }

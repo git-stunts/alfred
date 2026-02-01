@@ -98,6 +98,17 @@ describe('Telemetry', () => {
       });
     });
 
+    it('ignores invalid latency values', () => {
+      const sink = new MetricsSink();
+      
+      sink.emit({ type: 'test', duration: -10 });
+      sink.emit({ type: 'test', duration: NaN });
+      sink.emit({ type: 'test', duration: Infinity });
+      sink.emit({ type: 'test', duration: '10' });
+      
+      expect(sink.stats.latency.count).toBe(0);
+    });
+
     it('can be cleared', () => {
       const sink = new MetricsSink();
       sink.emit({ type: 'test', metrics: { custom: 1 } });
