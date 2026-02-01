@@ -163,6 +163,32 @@ export class MultiSink implements TelemetrySink {
 }
 
 /**
+ * Sink that aggregates metrics in memory.
+ */
+export class MetricsSink implements TelemetrySink {
+  emit(event: TelemetryEvent): void;
+  /** Returns a snapshot of the current metrics. */
+  get stats(): {
+    retries: number;
+    failures: number;
+    successes: number;
+    circuitBreaks: number;
+    bulkheadRejections: number;
+    timeouts: number;
+    hedges: number;
+    latency: {
+      count: number;
+      sum: number;
+      min: number;
+      max: number;
+      avg: number;
+    };
+  };
+  /** Resets all metrics to zero. */
+  clear(): void;
+}
+
+/**
  * Error thrown when all retry attempts are exhausted.
  */
 export class RetryExhaustedError extends Error {

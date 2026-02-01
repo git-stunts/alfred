@@ -28,3 +28,12 @@ export { Policy, Policy as default } from './policy.js';
 
 // Clock utilities
 export { SystemClock, TestClock } from './utils/clock.js';
+
+// Telemetry
+export { 
+  InMemorySink, 
+  ConsoleSink, 
+  NoopSink, 
+  MultiSink,
+  MetricsSink 
+} from './telemetry.js';
