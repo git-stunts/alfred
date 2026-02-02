@@ -281,7 +281,7 @@ export class BulkheadRejectedError extends Error {
 export class RateLimitExceededError extends Error {
   /** The configured rate limit (requests per second). */
   rate: number;
-  /** Seconds until the next request can be made. */
+  /** Milliseconds until the next request can be made. */
   retryAfter: number;
   constructor(rate: number, retryAfter: number);
 }
