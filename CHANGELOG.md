@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **Rate Limiting Policy**: New `rateLimit()` policy for throughput control using token bucket algorithm.
+- **Rate-Limiting Policy**: New `rateLimit()` policy for throughput control using token bucket algorithm.
   - Configurable `rate` (requests/sec) and `burst` capacity
   - Optional `queueLimit` for backpressure (default: reject immediately)
   - `RateLimitExceededError` with `rate` and `retryAfter` properties
