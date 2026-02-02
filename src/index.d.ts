@@ -364,14 +364,34 @@ export class Policy {
   execute<T>(fn: () => Promise<T>): Promise<T>;
 }
 
+/**
+ * System clock using real time.
+ * Uses runtime-aware timer management for clean process exits.
+ */
 export class SystemClock {
+  /** Returns current time in milliseconds since Unix epoch. */
   now(): number;
+  /** Sleeps for the specified duration. */
   sleep(ms: number): Promise<void>;
 }
 
+/**
+ * Test clock for deterministic tests.
+ * Allows manual control of time progression without real delays.
+ */
 export class TestClock {
+  /** Returns current virtual time in milliseconds. */
   now(): number;
+  /** Creates a sleep promise that resolves when time is advanced. */
   sleep(ms: number): Promise<void>;
+  /** Process any timers ready at current time. */
   tick(ms?: number): Promise<void>;
+  /** Advances time and resolves any pending timers. */
   advance(ms: number): Promise<void>;
+  /** Sets absolute time. */
+  setTime(time: number): void;
+  /** Returns number of pending timers. */
+  readonly pendingCount: number;
+  /** Clears all pending timers and resets time to 0. */
+  reset(): void;
 }
