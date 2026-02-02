@@ -27,7 +27,7 @@ Alfred becomes a **runtime-controlled resilience layer**:
 ## Version Milestones
 
 - [x] v0.5 — Correctness & Coherence
-- [ ] v0.6 — Typed Knobs & Stable Semantics
+- [x] v0.6 — Typed Knobs & Stable Semantics
 - [ ] v0.7 — Rate Limiting (Throughput) Policy
 - [ ] v0.8 — Control Plane Core (In-Memory)
 - [ ] v0.9 — Live Policies by ID (No Redeploy)
