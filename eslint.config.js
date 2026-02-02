@@ -115,4 +115,18 @@ export default [
       },
     },
   },
+  // Cloudflare Workers globals
+  {
+    files: ['examples/cloudflare-worker/**/*.js'],
+    languageOptions: {
+      globals: {
+        Response: 'readonly',
+        Request: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        Promise: 'readonly',
+      },
+    },
+  },
 ];

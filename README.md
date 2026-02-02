@@ -84,6 +84,7 @@ Alfred is designed to be platform-agnostic and tested against:
 - **Bun** (>= 1)
 - **Deno** (>= 1.35)
 - **Browsers** (Chrome 85+, Firefox 79+, Safari 14+, Edge 85+)
+- **Cloudflare Workers**
 
 Uses standard Web APIs (AbortController, AbortSignal, Promise.any) with no Node-specific dependencies. Runtime-aware clock management ensures clean process exits in server environments.
 
@@ -503,6 +504,7 @@ Hedge uses `Promise.any()` internally. This is available in:
 - Deno >= 1.2
 - Bun >= 1.0
 - Modern browsers (Chrome 85+, Firefox 79+, Safari 14+)
+- Cloudflare Workers
 
 For older runtimes, use a polyfill like [core-js](https://github.com/zloirock/core-js#promiseany) or [promise.any](https://www.npmjs.com/package/promise.any).
 

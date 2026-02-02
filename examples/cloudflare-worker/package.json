@@ -1,0 +1,13 @@
+{
+  "name": "alfred-cloudflare-worker-test",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild worker.js --bundle --outfile=dist/worker.js --format=esm --target=es2022",
+    "test": "npm run build && node test.js"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0",
+    "miniflare": "^3.20240129.0"
+  }
+}

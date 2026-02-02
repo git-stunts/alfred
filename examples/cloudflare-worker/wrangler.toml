@@ -1,0 +1,6 @@
+name = "alfred-worker-test"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+[build]
+command = ""
