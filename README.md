@@ -16,7 +16,7 @@ o88o     o8888o o888o o888o   d888b    `Y8bod8P' `Y8bod88P"
 
 > _"Why do we fall, Bruce?"_
 >
-> _"So we can `retry({ backoff: "exponential", jitter: "decorrelated" })`."_
+> _"So we can `retry({ backoff: 'exponential', jitter: 'decorrelated' })`."_
 
 Resilience patterns for async operations. _Tuff 'nuff for most stuff._
 
@@ -91,7 +91,7 @@ Uses standard Web APIs (AbortController, AbortSignal) and runtime-aware clock ma
 ## Quick start (functional helpers)
 
 ```javascript
-import { retry, circuitBreaker, bulkhead, timeout, compose } from '@git-stunts/alfred';
+import { retry, circuitBreaker, bulkhead, timeout } from '@git-stunts/alfred';
 
 // 1) Simple retry with exponential backoff
 const data = await retry(() => fetch('https://api.example.com/data'), {
@@ -104,16 +104,114 @@ const data = await retry(() => fetch('https://api.example.com/data'), {
 const breaker = circuitBreaker({ threshold: 5, duration: 60_000 });
 const result = await breaker.execute(() => callFlakeyService());
 
-// 3) Compose multiple policies (left -> right = outermost -> innermost)
-const resilient = compose(
-  timeout(5_000),
-  retry({ retries: 3, backoff: 'exponential', jitter: 'full' }),
-  circuitBreaker({ threshold: 5, duration: 60_000 }),
-  bulkhead({ limit: 10, queueLimit: 20 })
+// 3) Bulkhead — limit concurrent executions
+const limiter = bulkhead({ limit: 10, queueLimit: 20 });
+await limiter.execute(() => heavyOperation());
+
+// 4) Timeout — prevent operations from hanging
+const fast = await timeout(5_000, () => slowOperation());
+```
+
+---
+
+## Policy Algebra
+
+Alfred provides three composition operators for building complex resilience strategies:
+
+| Operator | Fluent          | Functional       | Semantics                             |
+| -------- | --------------- | ---------------- | ------------------------------------- |
+| **wrap** | `.wrap(policy)` | `compose(a, b)`  | Sequential: A wraps B (outer → inner) |
+| **or**   | `.or(policy)`   | `fallback(a, b)` | Fallback: try A, if fails try B       |
+| **race** | `.race(policy)` | `race(a, b)`     | Concurrent: first success wins        |
+
+### Example 1: Production Stack (timeout + retry + circuit + bulkhead)
+
+The classic resilience stack. Read execution order from **outside-in**: timeout wraps retry wraps circuit breaker wraps bulkhead.
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+const resilient = Policy.timeout(5_000) // 1. Total deadline
+  .wrap(
+    Policy.retry({
+      // 2. Retry transient failures
+      retries: 3,
+      backoff: 'exponential',
+      jitter: 'decorrelated',
+      delay: 100,
+    })
+  )
+  .wrap(
+    Policy.circuitBreaker({
+      // 3. Fail fast when broken
+      threshold: 5,
+      duration: 30_000,
+    })
+  )
+  .wrap(Policy.bulkhead({ limit: 10, queueLimit: 20 })); // 4. Limit concurrency
+
+await resilient.execute(() => fetch('https://api.example.com/data'));
+```
+
+### Example 2: Fast/Slow Fallback
+
+Try a fast strategy first; if it fails (or times out), fall back to a slower but more reliable approach.
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+// Fast path: short timeout, no retries
+const fast = Policy.timeout(500);
+
+// Slow path: longer timeout with retries
+const slow = Policy.timeout(5_000).wrap(
+  Policy.retry({ retries: 3, backoff: 'exponential', delay: 200 })
 );
 
-await resilient.execute(() => riskyOperation());
+// Try fast first, fall back to slow
+const resilient = fast.or(slow);
+
+await resilient.execute(() => fetch('https://api.example.com/data'));
 ```
+
+### Example 3: Hedged Requests (Race Pattern)
+
+Spawn parallel "hedge" requests to reduce tail latency. First success wins; losers are cancelled.
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+// Hedge: if primary is slow, spawn backup attempts
+const hedged = Policy.hedge({ delay: 100, maxHedges: 2 });
+
+// Combine with bulkhead to prevent self-DDOS
+const safe = hedged.wrap(Policy.bulkhead({ limit: 5 }));
+
+// The operation receives an AbortSignal to enable cancellation
+await safe.execute((signal) => fetch('https://api.example.com/data', { signal }));
+```
+
+> **Tip:** Only hedge idempotent operations. Non-idempotent operations (writes, payments) should not be hedged.
+
+### Fluent vs Functional
+
+Both styles produce equivalent results:
+
+```javascript
+// Fluent API
+const policy1 = Policy.timeout(5_000)
+  .wrap(Policy.retry({ retries: 3 }))
+  .wrap(Policy.circuitBreaker({ threshold: 5, duration: 60_000 }));
+
+// Functional API
+const policy2 = compose(
+  Policy.timeout(5_000),
+  Policy.retry({ retries: 3 }),
+  circuitBreaker({ threshold: 5, duration: 60_000 }) // functional returns policy object
+);
+```
+
+The fluent API is recommended for readability. Use functional `compose()` when building policies dynamically.
 
 ---
 
@@ -124,6 +222,7 @@ await resilient.execute(() => riskyOperation());
 - [bulkhead(options)](#bulkheadoptions)
 - [timeout(ms, fn, options)](#timeoutms-fn-options)
 - [hedge(options)](#hedgeoptions)
+- [Policy Algebra](#policy-algebra)
 - [Policy (fluent API)](#policy-fluent-api)
 - [compose(...policies)](#composepolicies)
 - [fallback(primary, secondary)](#fallbackprimary-secondary)
@@ -358,14 +457,16 @@ const racing = Policy.timeout(1_000).race(Policy.timeout(2_000));
 
 ## compose(...policies)
 
-Combines multiple policies. Policies execute left -> right (outermost -> innermost).
+Combines multiple policy objects. Policies execute left -> right (outermost -> innermost).
+
+Policy objects must have an `.execute(fn)` method. Use `circuitBreaker()` and `bulkhead()` directly, or use the `Policy` class for `retry()` and `timeout()`.
 
 ```javascript
-import { compose, retry, circuitBreaker, timeout, bulkhead } from '@git-stunts/alfred';
+import { compose, circuitBreaker, bulkhead, Policy } from '@git-stunts/alfred';
 
 const resilient = compose(
-  timeout(30_000), // Total timeout
-  retry({ retries: 3, backoff: 'exponential' }), // Retry failures
+  Policy.timeout(30_000), // Total timeout
+  Policy.retry({ retries: 3, backoff: 'exponential' }), // Retry failures
   circuitBreaker({ threshold: 5, duration: 60_000 }), // Fail fast if broken
   bulkhead({ limit: 5, queueLimit: 10 }) // Limit concurrency
 );
@@ -380,11 +481,11 @@ await resilient.execute(() => riskyOperation());
 Executes the primary policy; if it fails, executes the secondary.
 
 ```javascript
-import { fallback, retry, timeout } from '@git-stunts/alfred';
+import { fallback, circuitBreaker, Policy } from '@git-stunts/alfred';
 
 const withFallback = fallback(
-  retry({ retries: 3 }),
-  timeout(1_000) // fallback policy
+  Policy.retry({ retries: 3 }),
+  circuitBreaker({ threshold: 5, duration: 60_000 })
 );
 
 await withFallback.execute(() => riskyOperation());
@@ -397,9 +498,9 @@ await withFallback.execute(() => riskyOperation());
 Executes both policies concurrently; the first to succeed wins.
 
 ```javascript
-import { race, timeout } from '@git-stunts/alfred';
+import { race, Policy } from '@git-stunts/alfred';
 
-const racing = race(timeout(1_000), timeout(2_000));
+const racing = race(Policy.timeout(1_000), Policy.timeout(2_000));
 
 // Whichever completes first wins
 await racing.execute(() => fetchFromMultipleSources());
@@ -477,10 +578,10 @@ All policies emit events:
 
 ## Testing
 
-Use `TestClock` for deterministic tests without real delays.
+Use `TestClock` for deterministic tests without real delays. All time-based policies (`retry`, `timeout`, `hedge`) support clock injection.
 
 ```javascript
-import { retry, TestClock } from '@git-stunts/alfred/testing';
+import { retry, timeout, TestClock, TimeoutError } from '@git-stunts/alfred';
 
 test('retries with exponential backoff', async () => {
   const clock = new TestClock();
@@ -509,6 +610,17 @@ test('retries with exponential backoff', async () => {
   expect(attempts).toBe(3);
 
   expect(await promise).toBe('success');
+});
+
+test('timeout triggers after virtual time', async () => {
+  const clock = new TestClock();
+
+  const slowOp = () => clock.sleep(10_000).then(() => 'done');
+  const promise = timeout(5_000, slowOp, { clock });
+
+  await clock.advance(5_000);
+
+  await expect(promise).rejects.toThrow(TimeoutError);
 });
 ```
 
