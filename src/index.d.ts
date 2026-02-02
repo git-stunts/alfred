@@ -1,19 +1,18 @@
 /**
  * @module @git-stunts/alfred
  * @description Production-grade resilience patterns for async operations.
- * Includes Retry, Circuit Breaker, Timeout, and Bulkhead policies.
+ * Includes Retry, Circuit Breaker, Timeout, Bulkhead, and Hedge policies.
  *
  * @example
  * ```ts
- * import { compose, retry, circuitBreaker, timeout } from "@git-stunts/alfred";
+ * import { Policy } from "@git-stunts/alfred";
  *
- * const policy = compose(
- *   retry({ retries: 3 }),
- *   circuitBreaker({ threshold: 5, duration: 60000 }),
- *   timeout(5000)
- * );
+ * const resilient = Policy.timeout(5_000)
+ *   .wrap(Policy.retry({ retries: 3, backoff: "exponential" }))
+ *   .wrap(Policy.circuitBreaker({ threshold: 5, duration: 60_000 }))
+ *   .wrap(Policy.bulkhead({ limit: 10 }));
  *
- * await policy.execute(() => fetch("https://api.example.com"));
+ * const data = await resilient.execute(() => fetch("https://api.example.com"));
  * ```
  */
 
