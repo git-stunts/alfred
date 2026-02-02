@@ -10,15 +10,18 @@
   },
   "publish": {
     "exclude": [
-      "!src/**/*.js",
-      "!src/**/*.d.ts",
-      "!README.md",
-      "!LICENSE",
-      "!CHANGELOG.md",
-      "node_modules",
-      "test",
+      ".github",
+      ".devcontainer",
       "docker",
-      ".devcontainer"
+      "examples",
+      "scripts",
+      "test",
+      "node_modules",
+      ".editorconfig",
+      "eslint.config.js",
+      "package-lock.json",
+      "ROADMAP.md",
+      "setup-hooks.sh"
     ]
   }
 }

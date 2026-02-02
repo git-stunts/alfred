@@ -41,14 +41,20 @@ export class SystemClock {
 
 /**
  * Test clock for deterministic tests.
- * Allows manual control of time progression.
+ * Allows manual control of time progression without real delays.
  */
 export class TestClock {
   constructor() {
+    /** @type {number} */
     this._time = 0;
+    /** @type {Array<{triggerAt: number, resolve: () => void}>} */
     this._pendingTimers = [];
   }
 
+  /**
+   * Returns the current virtual time in milliseconds.
+   * @returns {number}
+   */
   now() {
     return this._time;
   }
