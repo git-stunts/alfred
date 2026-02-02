@@ -45,6 +45,7 @@ import { circuitBreaker } from './policies/circuit-breaker.js';
 import { timeout } from './policies/timeout.js';
 import { bulkhead } from './policies/bulkhead.js';
 import { hedge } from './policies/hedge.js';
+import { rateLimit } from './policies/rate-limit.js';
 import { compose, fallback, race } from './compose.js';
 
 /**
@@ -154,6 +155,21 @@ export class Policy {
   static hedge(options) {
     const hedger = hedge(options);
     return new Policy((fn) => hedger.execute(fn));
+  }
+
+  /**
+   * Creates a Policy that limits throughput (requests per second).
+   *
+   * @param {import('./policies/rate-limit.js').RateLimitOptions} options
+   * @returns {Policy}
+   *
+   * @example
+   * const policy = Policy.rateLimit({ rate: 100, burst: 150 });
+   * await policy.execute(() => callApi());
+   */
+  static rateLimit(options) {
+    const limiter = rateLimit(options);
+    return new Policy((fn) => limiter.execute(fn));
   }
 
   /**

@@ -236,6 +236,7 @@ The fluent API is recommended for readability. Use functional `compose()` when b
 - [retry(fn, options)](#retryfn-options)
 - [circuitBreaker(options)](#circuitbreakeroptions)
 - [bulkhead(options)](#bulkheadoptions)
+- [rateLimit(options)](#ratelimitoptions)
 - [timeout(ms, fn, options)](#timeoutms-fn-options)
 - [hedge(options)](#hedgeoptions)
 - [Policy Algebra](#policy-algebra)
@@ -375,6 +376,74 @@ console.log(`Load: ${limiter.stats.active} active`);
 | ------------ | -------- | -------- | --------------------------------- |
 | `limit`      | `number` | required | Maximum concurrent executions     |
 | `queueLimit` | `number` | `0`      | Maximum pending requests in queue |
+
+---
+
+## rateLimit(options)
+
+Token bucket rate limiter for throughput control. Unlike bulkhead (which limits concurrency), rate limit controls requests per second.
+
+```javascript
+import { rateLimit } from '@git-stunts/alfred';
+
+const limiter = rateLimit({ rate: 100 }); // 100 req/sec
+await limiter.execute(() => fetch('/api'));
+```
+
+### With Burst Capacity
+
+Allow temporary bursts above the base rate:
+
+```javascript
+const limiter = rateLimit({ rate: 100, burst: 150 });
+```
+
+### With Queueing
+
+Queue excess requests instead of rejecting immediately:
+
+```javascript
+const limiter = rateLimit({ rate: 10, queueLimit: 50 });
+```
+
+### Policy Fluent API
+
+```javascript
+const policy = Policy.rateLimit({ rate: 100 }).wrap(Policy.retry({ retries: 3 }));
+```
+
+### Options
+
+| Option       | Type            | Default  | Description                               |
+| ------------ | --------------- | -------- | ----------------------------------------- |
+| `rate`       | `number`        | required | Maximum requests per second               |
+| `burst`      | `number`        | `rate`   | Maximum bucket capacity for burst traffic |
+| `queueLimit` | `number`        | `0`      | Maximum pending requests in queue         |
+| `clock`      | `Clock`         | -        | Custom clock for testing                  |
+| `telemetry`  | `TelemetrySink` | -        | Sink for observability events             |
+
+### Error Handling
+
+When the rate limit is exceeded and no queue space is available, a `RateLimitExceededError` is thrown:
+
+```javascript
+import { rateLimit, RateLimitExceededError } from '@git-stunts/alfred';
+
+const limiter = rateLimit({ rate: 10 });
+
+try {
+  await limiter.execute(() => fetch('/api'));
+} catch (err) {
+  if (err instanceof RateLimitExceededError) {
+    console.log(`Rate limit exceeded: ${err.rate} req/sec`);
+    console.log(`Retry after: ${err.retryAfter}ms`);
+  }
+}
+```
+
+| Error                    | Thrown When                        | Properties           |
+| ------------------------ | ---------------------------------- | -------------------- |
+| `RateLimitExceededError` | Rate limit exceeded and queue full | `rate`, `retryAfter` |
 
 ---
 
@@ -535,6 +604,7 @@ await resilient.execute(() => riskyOperation());
 | `Policy.circuitBreaker(options)` | Create a circuit breaker policy      |
 | `Policy.timeout(ms, options)`    | Create a timeout policy              |
 | `Policy.bulkhead(options)`       | Create a bulkhead policy             |
+| `Policy.rateLimit(options)`      | Create a rate limit policy           |
 | `Policy.hedge(options)`          | Create a hedge policy                |
 | `Policy.noop()`                  | Create a pass-through (no-op) policy |
 
@@ -736,6 +806,7 @@ import {
   CircuitOpenError,
   TimeoutError,
   BulkheadRejectedError,
+  RateLimitExceededError,
 } from '@git-stunts/alfred';
 
 try {
@@ -750,16 +821,19 @@ try {
     console.log(`Timed out after ${err.elapsed}ms`);
   } else if (err instanceof BulkheadRejectedError) {
     console.log(`Bulkhead full: ${err.limit} active, ${err.queueLimit} queued`);
+  } else if (err instanceof RateLimitExceededError) {
+    console.log(`Rate limited: ${err.rate} req/sec, retry after ${err.retryAfter}ms`);
   }
 }
 ```
 
-| Error                   | Thrown When                       | Properties                 |
-| ----------------------- | --------------------------------- | -------------------------- |
-| `RetryExhaustedError`   | All retry attempts failed         | `attempts`, `cause`        |
-| `CircuitOpenError`      | Circuit breaker is open           | `openedAt`, `failureCount` |
-| `TimeoutError`          | Operation exceeded time limit     | `timeout`, `elapsed`       |
-| `BulkheadRejectedError` | Bulkhead limit and queue are full | `limit`, `queueLimit`      |
+| Error                    | Thrown When                        | Properties                 |
+| ------------------------ | ---------------------------------- | -------------------------- |
+| `RetryExhaustedError`    | All retry attempts failed          | `attempts`, `cause`        |
+| `CircuitOpenError`       | Circuit breaker is open            | `openedAt`, `failureCount` |
+| `TimeoutError`           | Operation exceeded time limit      | `timeout`, `elapsed`       |
+| `BulkheadRejectedError`  | Bulkhead limit and queue are full  | `limit`, `queueLimit`      |
+| `RateLimitExceededError` | Rate limit exceeded and queue full | `rate`, `retryAfter`       |
 
 ---
 
