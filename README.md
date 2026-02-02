@@ -83,8 +83,23 @@ Alfred is designed to be platform-agnostic and tested against:
 - **Node.js** (>= 20)
 - **Bun** (>= 1)
 - **Deno** (>= 1.35)
+- **Browsers** (Chrome 85+, Firefox 79+, Safari 14+, Edge 85+)
 
-Uses standard Web APIs (AbortController, AbortSignal) and runtime-aware clock management to ensure clean process exits (e.g. timer unref where applicable).
+Uses standard Web APIs (AbortController, AbortSignal, Promise.any) with no Node-specific dependencies. Runtime-aware clock management ensures clean process exits in server environments.
+
+### Browser Demo
+
+Run the interactive "Flaky Fetch Lab" to see resilience policies in action:
+
+```bash
+npm run demo:web:install && npm run demo:web
+```
+
+Or run the Playwright browser tests:
+
+```bash
+npm run demo:web:install && npm run test:browser
+```
 
 ---
 

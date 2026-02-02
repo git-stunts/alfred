@@ -1,6 +1,10 @@
 import js from '@eslint/js';
 
 export default [
+  // Global ignores
+  {
+    ignores: ['examples/web/**', '**/dist/**', '**/node_modules/**'],
+  },
   js.configs.recommended,
   {
     languageOptions: {

@@ -23,8 +23,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:browser": "npm --prefix examples/web run test",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "demo:web": "npm --prefix examples/web run dev",
+    "demo:web:install": "npm --prefix examples/web install"
   },
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",
@@ -53,7 +56,8 @@
     "bulkhead",
     "timeout",
     "fault-tolerance",
-    "async"
+    "async",
+    "browser"
   ],
   "devDependencies": {
     "@eslint/js": "^9.17.0",

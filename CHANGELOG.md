@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- **Browser Support**: Alfred now officially supports modern browsers (Chrome 85+, Firefox 79+, Safari 14+, Edge 85+).
+- **Browser Demo**: Interactive "Flaky Fetch Lab" (`npm run demo:web`) demonstrates resilience policies running in a browser.
+- **Playwright Tests**: Browser compatibility tests verify retry, timeout, bulkhead, and circuit breaker work in Chromium.
 - **Resolution Timing Documentation**: New README section documenting when dynamic options (functions) are resolved for each policy—per attempt, per admission, per event, or per execute.
 - **Resolution Timing Tests**: Comprehensive test suite verifying option resolution timing with call counters.
 - **Hedge Safety Guardrails**: Documentation for safe hedge usage—idempotent operations only, AbortSignal handling, bulkhead composition.
