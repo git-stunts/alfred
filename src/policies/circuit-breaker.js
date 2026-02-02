@@ -1,3 +1,13 @@
+/**
+ * @fileoverview Circuit breaker policy for fail-fast behavior.
+ *
+ * Prevents cascading failures by tracking error rates and "opening"
+ * the circuit when a threshold is exceeded. Supports half-open state
+ * for automatic recovery testing.
+ *
+ * @module @git-stunts/alfred/policies/circuit-breaker
+ */
+
 import { CircuitOpenError } from '../errors.js';
 import { SystemClock } from '../utils/clock.js';
 import { NoopSink } from '../telemetry.js';

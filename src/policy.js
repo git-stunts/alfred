@@ -1,4 +1,14 @@
 /**
+ * @fileoverview Fluent Policy API for composing resilience strategies.
+ *
+ * The Policy class provides a chainable interface for building complex
+ * resilience stacks using wrap (sequential), or (fallback), and race
+ * (concurrent) composition operators.
+ *
+ * @module @git-stunts/alfred/policy
+ */
+
+/**
  * @typedef {(fn: () => Promise<T>) => Promise<T>} Executor
  * @template T
  */
