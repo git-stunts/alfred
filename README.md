@@ -406,6 +406,90 @@ const result = await hedger.execute((signal) => fetch('https://api.example.com/d
 | `delay`     | `number` | required | Milliseconds to wait before spawning a hedge |
 | `maxHedges` | `number` | `1`      | Maximum number of hedge requests to spawn    |
 
+### Safety Guardrails
+
+> **Warning:** Hedging spawns parallel requests. Use responsibly to avoid overloading backends.
+
+1. **Only hedge idempotent operations.** Reads, lookups, and GET requests are safe. Writes, payments, and state mutations are not — you may end up with duplicate side effects.
+
+2. **Always use AbortSignal.** Your operation receives an `AbortSignal` that fires when a faster hedge wins. Honor it to cancel in-flight work (fetch, database queries, etc.).
+
+3. **Combine with bulkhead + circuit breaker.** Prevent self-DDOS and cascading failures:
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+// Safe hedging: bulkhead limits total concurrency, circuit breaker fails fast
+const safeHedge = Policy.hedge({ delay: 100, maxHedges: 2 })
+  .wrap(Policy.bulkhead({ limit: 10 }))
+  .wrap(Policy.circuitBreaker({ threshold: 5, duration: 30_000 }));
+
+await safeHedge.execute((signal) => fetch(url, { signal }));
+```
+
+4. **Set reasonable delays.** The `delay` should be based on your P50/P90 latency. Too short = excessive load. Too long = no benefit.
+
+### Recipe: hedgeRead (Read-Only Operations)
+
+A reusable pattern for hedging database reads or cache lookups:
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+function createHedgedReader(options = {}) {
+  const { delay = 50, maxHedges = 1, concurrencyLimit = 5 } = options;
+
+  return Policy.hedge({ delay, maxHedges }).wrap(Policy.bulkhead({ limit: concurrencyLimit }));
+}
+
+const hedgedRead = createHedgedReader({ delay: 50, maxHedges: 1 });
+
+// Use for any read-only operation
+const user = await hedgedRead.execute((signal) => db.users.findById(id, { signal }));
+const cached = await hedgedRead.execute((signal) => cache.get(key, { signal }));
+```
+
+### Recipe: Happy Eyeballs (Parallel Endpoints)
+
+Race requests to multiple endpoints (e.g., IPv4 vs IPv6, primary vs replica):
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+async function happyEyeballsFetch(urls, options = {}) {
+  const { delay = 50 } = options;
+
+  // Create a hedge policy that spawns one hedge per additional URL
+  const racer = Policy.hedge({ delay, maxHedges: urls.length - 1 });
+
+  let urlIndex = 0;
+  return racer.execute((signal) => {
+    const url = urls[urlIndex++ % urls.length];
+    return fetch(url, { signal }).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res;
+    });
+  });
+}
+
+// First successful response wins
+const response = await happyEyeballsFetch([
+  'https://api-primary.example.com/data',
+  'https://api-replica.example.com/data',
+]);
+```
+
+### Runtime Requirements
+
+Hedge uses `Promise.any()` internally. This is available in:
+
+- Node.js >= 15.0.0
+- Deno >= 1.2
+- Bun >= 1.0
+- Modern browsers (Chrome 85+, Firefox 79+, Safari 14+)
+
+For older runtimes, use a polyfill like [core-js](https://github.com/zloirock/core-js#promiseany) or [promise.any](https://www.npmjs.com/package/promise.any).
+
 ---
 
 ## Policy (fluent API)
