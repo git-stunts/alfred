@@ -661,6 +661,64 @@ try {
 
 ---
 
+## Resolution Timing (Dynamic Options)
+
+All policy options can be passed as **functions** for dynamic/live-tunable behavior. This table documents **when** each option is resolved:
+
+| Policy             | Option             | Resolution Timing | Description                                   |
+| ------------------ | ------------------ | ----------------- | --------------------------------------------- |
+| **retry**          | `retries`          | per attempt       | Checked after each failure                    |
+| **retry**          | `delay`            | per attempt       | Calculated before each backoff sleep          |
+| **retry**          | `maxDelay`         | per attempt       | Applied when calculating delay                |
+| **retry**          | `backoff`          | per attempt       | Strategy resolved per delay calculation       |
+| **retry**          | `jitter`           | per attempt       | Jitter type resolved per delay calculation    |
+| **bulkhead**       | `limit`            | per admission     | Checked when request tries to execute         |
+| **bulkhead**       | `queueLimit`       | per admission     | Checked when request tries to queue           |
+| **circuitBreaker** | `threshold`        | per event         | Checked on each failure                       |
+| **circuitBreaker** | `duration`         | per event         | Checked when testing for half-open transition |
+| **circuitBreaker** | `successThreshold` | per event         | Checked on each success in half-open state    |
+| **timeout**        | `ms`               | per execute       | Resolved once at start of timeout             |
+| **hedge**          | `delay`            | per execute       | Resolved once at start of execute             |
+| **hedge**          | `maxHedges`        | per execute       | Resolved once at start of execute             |
+
+### Resolution Timing Semantics
+
+- **per execute**: Option is resolved once when `execute()` is called. Changes during execution have no effect.
+- **per attempt**: Option is resolved each time an attempt/retry occurs. Allows mid-execution tuning.
+- **per admission**: Option is resolved each time a request attempts to enter the bulkhead.
+- **per event**: Option is resolved when the relevant event (failure, success, state check) occurs.
+
+### Example: Dynamic Retry Limit
+
+```javascript
+let maxRetries = 2;
+
+// Pass a function to make it dynamic
+await retry(operation, {
+  retries: () => maxRetries, // Resolved per attempt
+  delay: 100,
+});
+
+// In another part of your code, you can adjust:
+maxRetries = 5; // Future failures will see the new limit
+```
+
+### Example: Dynamic Bulkhead Limit
+
+```javascript
+let concurrencyLimit = 10;
+
+const bh = bulkhead({
+  limit: () => concurrencyLimit, // Resolved per admission
+  queueLimit: 20,
+});
+
+// Later, reduce concurrency (takes effect on next admission)
+concurrencyLimit = 5;
+```
+
+---
+
 ## License
 
 Apache-2.0 © 2026 by James Ross
