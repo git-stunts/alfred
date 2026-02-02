@@ -23,3 +23,8 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
+
+      # Browser tests
+      - run: npm run demo:web:install
+      - run: npx --prefix examples/web playwright install --with-deps chromium
+      - run: npm run test:browser
