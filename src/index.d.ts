@@ -163,7 +163,7 @@ export class NoopSink implements TelemetrySink {
  * Broadcasts telemetry events to multiple other sinks.
  */
 export class MultiSink implements TelemetrySink {
-  constructor(sinks: TelemetrySink[]);
+  constructor(sinks?: TelemetrySink[]);
   emit(event: TelemetryEvent): void;
 }
 

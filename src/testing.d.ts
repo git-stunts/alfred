@@ -181,7 +181,7 @@ export class MultiSink implements TelemetrySink {
   /**
    * @param sinks Array of sinks to broadcast to.
    */
-  constructor(sinks: TelemetrySink[]);
+  constructor(sinks?: TelemetrySink[]);
   /** Broadcasts event to all child sinks. */
   emit(event: TelemetryEvent): void;
 }

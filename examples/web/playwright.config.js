@@ -6,7 +6,7 @@ export default defineConfig({
   retries: 0,
   use: {
     baseURL: 'http://localhost:5199',
-    trace: 'on-first-retry',
+    trace: 'retain-on-failure',
   },
   webServer: {
     command: 'npx vite --port 5199',

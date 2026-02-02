@@ -10,8 +10,24 @@
 
 import { test, expect } from '@playwright/test';
 
+// Seeded PRNG (mulberry32) for deterministic tests
+const seededRandom = `
+  (function() {
+    let seed = 12345;
+    function mulberry32() {
+      let t = seed += 0x6D2B79F5;
+      t = Math.imul(t ^ t >>> 15, t | 1);
+      t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    }
+    Math.random = mulberry32;
+  })();
+`;
+
 test.describe('Alfred Browser Compatibility', () => {
   test.beforeEach(async ({ page }) => {
+    // Inject seeded PRNG before page loads for deterministic flakyOp behavior
+    await page.addInitScript(seededRandom);
     await page.goto('/');
     // Wait for the page to be ready
     await expect(page.locator('h1')).toContainText('Flaky Fetch Lab');
@@ -47,6 +63,8 @@ test.describe('Alfred Browser Compatibility', () => {
 
     // Set retries to 3
     await page.locator('#retries').fill('3');
+    // Increase bulkhead so more requests get through and can fail/retry
+    await page.locator('#bulkhead').fill('20');
 
     // Run the burst
     await page.locator('#go').click();

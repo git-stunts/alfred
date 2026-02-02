@@ -3,7 +3,7 @@ import js from '@eslint/js';
 export default [
   // Global ignores
   {
-    ignores: ['examples/web/**', '**/dist/**', '**/node_modules/**'],
+    ignores: ['**/dist/**', '**/node_modules/**'],
   },
   js.configs.recommended,
   {
@@ -98,6 +98,21 @@ export default [
       'no-console': 'off',
       'max-lines-per-function': 'off',
       complexity: 'off',
+    },
+  },
+  // Browser globals for web examples
+  {
+    files: ['examples/web/**/*.js'],
+    languageOptions: {
+      globals: {
+        document: 'readonly',
+        window: 'readonly',
+        performance: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        Promise: 'readonly',
+        DOMException: 'readonly',
+      },
     },
   },
 ];
