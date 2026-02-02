@@ -351,7 +351,7 @@ export function hedge(options: HedgeOptions): Hedge;
  */
 export interface RateLimit {
   /** Executes a function with rate limiting. */
-  execute<T>(fn: () => Promise<T>): Promise<T>;
+  execute<T>(fn: () => T | Promise<T>): Promise<T>;
   /** Current rate limiter statistics. */
   readonly stats: { tokens: number; queued: number };
 }
