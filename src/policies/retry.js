@@ -32,6 +32,7 @@ import { resolve } from '../utils/resolvable.js';
  * @property {(error: Error, attempt: number, delay: number) => void} [onRetry] - Callback invoked before each retry
  * @property {{ now(): number, sleep(ms: number): Promise<void> }} [clock] - Clock for testing
  * @property {import('../telemetry.js').TelemetrySink} [telemetry] - Telemetry sink
+ * @property {AbortSignal} [signal] - Abort signal to cancel retries
  */
 
 const DEFAULT_OPTIONS = {
@@ -60,6 +61,7 @@ class RetryExecutor {
     this.options = { ...DEFAULT_OPTIONS, ...options };
     this.clock = options.clock || new SystemClock();
     this.telemetry = options.telemetry || new NoopSink();
+    this.signal = options.signal;
     // this.applyJitter is now created dynamically in calculateDelay
     this.prevDelay = resolve(this.options.delay);
   }
@@ -85,6 +87,7 @@ class RetryExecutor {
   async execute() {
     // Loop condition: attempt <= (current_retries + 1)
     // We start at 1.
+    this.throwIfAborted();
     for (let attempt = 1; attempt <= resolve(this.options.retries) + 1; attempt++) {
       const shouldStop = await this.tryAttempt(attempt);
       if (shouldStop) {
@@ -96,12 +99,19 @@ class RetryExecutor {
   }
 
   async tryAttempt(attempt) {
+    this.throwIfAborted();
     const startTime = this.clock.now();
     try {
-      const result = await this.fn();
+      const result = await this.fn(this.signal);
       this.emitSuccess(attempt, startTime);
       return { result };
     } catch (error) {
+      if (isAbortError(error)) {
+        throw error;
+      }
+      if (this.isAborted()) {
+        throw createAbortError();
+      }
       this.handleFailure(error, attempt, startTime);
       // If we didn't throw in handleFailure, we need to wait
       // But we need to calculate delay first
@@ -112,7 +122,7 @@ class RetryExecutor {
         this.options.onRetry(error, attempt, delay);
       }
 
-      await this.clock.sleep(delay);
+      await sleepWithSignal(this.clock, delay, this.signal);
       return null; // Continue loop
     }
   }
@@ -165,16 +175,74 @@ class RetryExecutor {
       throw new RetryExhaustedError(attempt, error);
     }
   }
+
+  isAborted() {
+    return Boolean(this.signal && this.signal.aborted);
+  }
+
+  throwIfAborted() {
+    if (this.isAborted()) {
+      throw createAbortError();
+    }
+  }
 }
 
 /**
  * Executes an async function with configurable retry logic.
  *
  * @template T
- * @param {() => Promise<T>} fn - Async function to execute
+ * @param {(signal?: AbortSignal) => Promise<T>} fn - Async function to execute
  * @param {RetryOptions} [options={}] - Retry configuration
  * @returns {Promise<T>} Result of the successful execution
  */
 export async function retry(fn, options = {}) {
   return new RetryExecutor(fn, options).execute();
+}
+
+function createAbortError() {
+  const error = new Error('Operation aborted');
+  error.name = 'AbortError';
+  return error;
+}
+
+function isAbortError(error) {
+  return Boolean(error && error.name === 'AbortError');
+}
+
+async function sleepWithSignal(clock, ms, signal) {
+  if (!signal) {
+    return clock.sleep(ms);
+  }
+
+  if (signal.aborted) {
+    throw createAbortError();
+  }
+
+  return new Promise((resolvePromise, reject) => {
+    let onAbort = null;
+
+    const cleanup = () => {
+      if (onAbort) {
+        signal.removeEventListener('abort', onAbort);
+      }
+    };
+
+    onAbort = () => {
+      cleanup();
+      reject(createAbortError());
+    };
+
+    signal.addEventListener('abort', onAbort, { once: true });
+
+    clock.sleep(ms).then(
+      () => {
+        cleanup();
+        resolvePromise();
+      },
+      (err) => {
+        cleanup();
+        reject(err);
+      }
+    );
+  });
 }

@@ -44,6 +44,8 @@ export interface RetryOptions {
   telemetry?: TelemetrySink;
   /** Clock implementation for testing. */
   clock?: any;
+  /** Abort signal to cancel retries. */
+  signal?: AbortSignal;
 }
 
 /**
@@ -236,7 +238,10 @@ export class BulkheadRejectedError extends Error {
  * @returns The result of the operation.
  * @throws {RetryExhaustedError} If all retries fail.
  */
-export function retry<T>(fn: () => Promise<T>, options?: RetryOptions): Promise<T>;
+export function retry<T>(
+  fn: (signal?: AbortSignal) => Promise<T>,
+  options?: RetryOptions
+): Promise<T>;
 
 /**
  * Represents a Circuit Breaker instance.
