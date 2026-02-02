@@ -191,7 +191,14 @@ export function rateLimit(options) {
 
   function execute(fn) {
     const rate = resolve(options.rate);
+    const burst = resolve(options.burst ?? rate);
     const queueLimit = resolve(options.queueLimit ?? 0);
+
+    // Early rejection for invalid rate/burst configuration
+    if (rate <= 0 || burst < 1) {
+      emitters.emitRejected(Infinity);
+      return Promise.reject(new RateLimitExceededError(rate, Infinity));
+    }
 
     if (bucket.tryAcquire()) {
       emitters.emitAcquire();
