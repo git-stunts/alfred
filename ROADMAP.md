@@ -1,31 +1,24 @@
 # @git-stunts/alfred Roadmap
 
-A JavaScript resilience library providing retry, circuit breaker, timeout, and composition patterns.
+A JavaScript resilience library providing retry, circuit breaker, timeout, bulkhead, hedge, and composition patterns.
 
-## Current State (v0.1.0)
+## Current State (v0.4.0)
 
 - [x] `retry()` with backoff strategies (constant, linear, exponential) and jitter (none, full, equal, decorrelated)
+- [x] `retry()` with abortable retries via `AbortSignal`
 - [x] `circuitBreaker()` with CLOSED/OPEN/HALF_OPEN states
 - [x] `timeout()` with AbortSignal passthrough
+- [x] `bulkhead()` concurrency limiter with optional queue
+- [x] `hedge()` speculative execution for tail latency reduction
 - [x] `compose()`, `fallback()`, `race()` combinators
 - [x] Fluent `Policy` class with `.wrap()`, `.or()`, `.race()`
 - [x] `TestClock` for deterministic testing
-- [x] 97 tests passing
+- [x] Telemetry system with composable sinks (ConsoleSink, InMemorySink, MultiSink, MetricsSink, NoopSink)
+- [x] Resolvable options for runtime-updatable config
+- [x] Multi-runtime support (Node.js, Bun, Deno)
+- [x] TypeScript definitions
 
 ---
-
-## v0.2.0 - Bulkhead & Observability
-
-- [x] **Bulkhead policy** - Concurrency limiter using semaphore pattern to isolate failures
-- [x] **Telemetry system** - Composable sinks architecture (NullSink, LogSink, MemorySink)
-- [x] **Event hooks** - `onRetry`, `onCircuitStateChange` callbacks for monitoring
-- [x] **TypeScript definitions** - Ship `index.d.ts` for type safety
-
-## v0.3.0 - Adaptive & Hedge ("The Lucius Fox Upgrade")
-
-- [ ] **Adaptive Configuration** - Runtime-updatable config (e.g., dynamic timeouts/retries) via `Ref` or `Getter`.
-- [ ] **Hedge Policy** - Speculative execution to reduce tail latency (start second request if first is slow).
-- [ ] **Metrics Sink** - Aggregated stats (p95 latency, success rates) built on the telemetry system.
 
 ## v1.0.0 - Production Ready
 
@@ -34,14 +27,13 @@ A JavaScript resilience library providing retry, circuit breaker, timeout, and c
 - [ ] **API freeze** - Public API locked, semantic versioning enforced
 - [ ] **Comprehensive documentation** - API reference, guides, examples
 - [ ] **Performance benchmarks** - Measured overhead, memory usage
-- [ ] **Battle-tested** - Proven in `@git-stunts/empty-graph`
+- [ ] **Battle-tested** - Proven in production use
 - [ ] **Security audit** - Dependency review, vulnerability scan
 
 ## v1.1.0+ - Nice to Have
 
 > Post-stable enhancements. Cool but not essential.
 
-- [ ] **Hedge policy** - Speculative execution with configurable delay
 - [ ] **Rate limiting** - Token bucket and leaky bucket algorithms
 - [ ] **Policy registry** - Named policies for reuse across application
 - [ ] **Presets** - `webService()`, `databaseClient()`, `fastCache()` ready-made configs
