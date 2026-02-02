@@ -82,6 +82,52 @@ describe('retry', () => {
     });
   });
 
+  describe('abort behavior', () => {
+    it('passes AbortSignal to the operation', async () => {
+      const controller = new AbortController();
+      const fn = vi.fn(async (signal) => {
+        expect(signal).toBe(controller.signal);
+        return 'ok';
+      });
+
+      const result = await retry(fn, { signal: controller.signal });
+
+      expect(result).toBe('ok');
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts during backoff sleep', async () => {
+      const controller = new AbortController();
+      const fn = vi.fn().mockRejectedValue(new Error('fail'));
+      const clock = new TestClock();
+
+      const resultPromise = retry(fn, {
+        retries: 3,
+        delay: 100,
+        clock,
+        signal: controller.signal,
+      });
+
+      for (let i = 0; i < 20; i++) await Promise.resolve();
+      expect(fn).toHaveBeenCalledTimes(1);
+
+      controller.abort();
+      await expect(resultPromise).rejects.toMatchObject({ name: 'AbortError' });
+      expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it('aborts before first attempt', async () => {
+      const controller = new AbortController();
+      controller.abort();
+      const fn = vi.fn().mockResolvedValue('ok');
+
+      await expect(retry(fn, { signal: controller.signal })).rejects.toMatchObject({
+        name: 'AbortError',
+      });
+      expect(fn).not.toHaveBeenCalled();
+    });
+  });
+
   describe('exponential backoff timing', () => {
     it('applies exponential backoff delays', async () => {
       const fn = vi

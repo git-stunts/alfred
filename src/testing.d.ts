@@ -8,6 +8,7 @@ export interface RetryOptions {
   onRetry?: (error: Error, attempt: number, delay: number) => void;
   telemetry?: TelemetrySink;
   clock?: any;
+  signal?: AbortSignal;
 }
 
 export interface CircuitBreakerOptions {
@@ -88,7 +89,10 @@ export class BulkheadRejectedError extends Error {
   constructor(limit: number, queueLimit: number);
 }
 
-export function retry<T>(fn: () => Promise<T>, options?: RetryOptions): Promise<T>;
+export function retry<T>(
+  fn: (signal?: AbortSignal) => Promise<T>,
+  options?: RetryOptions
+): Promise<T>;
 
 export interface CircuitBreaker {
   execute<T>(fn: () => Promise<T>): Promise<T>;

@@ -104,6 +104,16 @@ await retry(() => mightFail(), {
   delay: 100,
   jitter: 'full', // or 'equal' or 'decorrelated'
 });
+
+// Abort retries
+const controller = new AbortController();
+const promise = retry((signal) => fetch('https://api.example.com/data', { signal }), {
+  retries: 3,
+  backoff: 'exponential',
+  delay: 100,
+  signal: controller.signal,
+});
+controller.abort();
 ```
 
 **Options:**
@@ -117,6 +127,7 @@ await retry(() => mightFail(), {
 | `jitter`      | `'none' \| 'full' \| 'equal' \| 'decorrelated'` | `'none'`     | Jitter strategy                      |
 | `shouldRetry` | `(error) => boolean`                            | `() => true` | Predicate to filter retryable errors |
 | `onRetry`     | `(error, attempt, delay) => void`               | -            | Callback on each retry               |
+| `signal`      | `AbortSignal`                                   | -            | Abort retries and backoff sleeps     |
 
 ### `circuitBreaker(options)`
 
