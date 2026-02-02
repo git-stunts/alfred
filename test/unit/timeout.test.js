@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { timeout } from '../../src/policies/timeout.js';
 import { TimeoutError } from '../../src/errors.js';
+import { TestClock } from '../../src/utils/clock.js';
 
 describe('timeout', () => {
   describe('successful completion', () => {
@@ -267,6 +268,180 @@ describe('timeout', () => {
       } catch (e) {
         expect(e).toBeInstanceOf(CustomError);
       }
+    });
+  });
+
+  describe('TestClock support (deterministic tests)', () => {
+    it('triggers timeout after virtual time advance', async () => {
+      const clock = new TestClock();
+      let resolved = false;
+
+      const fn = () =>
+        new Promise((resolve) => {
+          // This never resolves since we control time
+          clock.sleep(10000).then(() => {
+            resolved = true;
+            resolve('done');
+          });
+        });
+
+      const promise = timeout(5000, fn, { clock });
+
+      // Time hasn't advanced, should be pending
+      await clock.tick(0);
+      expect(resolved).toBe(false);
+
+      // Advance to just before timeout
+      await clock.advance(4999);
+      expect(clock.pendingCount).toBeGreaterThan(0);
+
+      // Advance past timeout
+      await clock.advance(2);
+
+      await expect(promise).rejects.toThrow(TimeoutError);
+      expect(resolved).toBe(false);
+    });
+
+    it('does not trigger timeout if operation finishes before deadline', async () => {
+      const clock = new TestClock();
+      let operationComplete = false;
+
+      const fn = () => {
+        return clock.sleep(100).then(() => {
+          operationComplete = true;
+          return 'success';
+        });
+      };
+
+      const promise = timeout(5000, fn, { clock });
+
+      // Operation completes at 100ms
+      await clock.advance(100);
+      await clock.tick(0);
+
+      const result = await promise;
+      expect(result).toBe('success');
+      expect(operationComplete).toBe(true);
+    });
+
+    it('reports correct elapsed time using clock', async () => {
+      const clock = new TestClock();
+      let reportedElapsed = null;
+
+      const fn = () =>
+        new Promise((resolve) => {
+          clock.sleep(10000).then(() => resolve('done'));
+        });
+
+      const promise = timeout(5000, fn, {
+        clock,
+        onTimeout: (elapsed) => {
+          reportedElapsed = elapsed;
+        },
+      });
+
+      await clock.advance(5000);
+
+      try {
+        await promise;
+      } catch {
+        // Expected timeout
+      }
+
+      expect(reportedElapsed).toBe(5000);
+    });
+
+    it('TimeoutError has correct values from clock', async () => {
+      const clock = new TestClock();
+
+      const fn = () =>
+        new Promise((resolve) => {
+          clock.sleep(10000).then(() => resolve('done'));
+        });
+
+      const promise = timeout(3000, fn, { clock });
+
+      await clock.advance(3000);
+
+      try {
+        await promise;
+        expect.fail('Should have thrown');
+      } catch (e) {
+        expect(e).toBeInstanceOf(TimeoutError);
+        expect(e.timeout).toBe(3000);
+        expect(e.elapsed).toBe(3000);
+      }
+    });
+
+    it('works with signal-accepting functions', async () => {
+      const clock = new TestClock();
+      let signalAborted = false;
+
+      const fn = (signal) => {
+        signal.addEventListener('abort', () => {
+          signalAborted = true;
+        });
+        return new Promise((resolve) => {
+          clock.sleep(10000).then(() => resolve('done'));
+        });
+      };
+
+      const promise = timeout(1000, fn, { clock });
+
+      await clock.advance(1000);
+
+      try {
+        await promise;
+      } catch {
+        // Expected timeout
+      }
+
+      expect(signalAborted).toBe(true);
+    });
+
+    it('runs deterministically with no real delays', async () => {
+      const clock = new TestClock();
+      const startRealTime = Date.now();
+
+      const fn = () =>
+        new Promise((resolve) => {
+          clock.sleep(60000).then(() => resolve('done'));
+        });
+
+      const promise = timeout(30000, fn, { clock });
+
+      // Advance 30 seconds of virtual time instantly
+      await clock.advance(30000);
+
+      try {
+        await promise;
+      } catch {
+        // Expected timeout
+      }
+
+      const elapsedRealTime = Date.now() - startRealTime;
+      // Should complete in well under a second of real time
+      expect(elapsedRealTime).toBeLessThan(100);
+    });
+
+    it('can test race between operation and timeout', async () => {
+      const clock = new TestClock();
+
+      // Test 1: Operation wins the race
+      const fastFn = () => clock.sleep(100).then(() => 'fast');
+
+      const fastPromise = timeout(200, fastFn, { clock });
+      await clock.advance(100);
+      expect(await fastPromise).toBe('fast');
+
+      // Test 2: Timeout wins the race
+      clock.reset();
+
+      const slowFn = () => clock.sleep(300).then(() => 'slow');
+
+      const slowPromise = timeout(200, slowFn, { clock });
+      await clock.advance(200);
+      await expect(slowPromise).rejects.toThrow(TimeoutError);
     });
   });
 });

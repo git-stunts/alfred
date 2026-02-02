@@ -80,6 +80,8 @@ export interface TimeoutOptions {
   onTimeout?: (elapsed: number) => void;
   /** Telemetry sink for observability. */
   telemetry?: TelemetrySink;
+  /** Clock implementation for testing. */
+  clock?: any;
 }
 
 /**
