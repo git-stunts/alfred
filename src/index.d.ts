@@ -350,7 +350,7 @@ export interface RateLimit {
   /**
    * Current rate limiter statistics.
    */
-  readonly stats: { available: number; pending: number };
+  readonly stats: { tokens: number; queued: number };
 }
 
 /**
