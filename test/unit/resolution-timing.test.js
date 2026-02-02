@@ -139,7 +139,7 @@ describe('Resolution Timing', () => {
 
   describe('bulkhead - resolves options per admission', () => {
     it('resolves limit per admission attempt', async () => {
-      let limit = 2;
+      const limit = 2;
       const limitFn = vi.fn(() => limit);
 
       const bh = bulkhead({ limit: limitFn, queueLimit: 0 });
@@ -161,7 +161,7 @@ describe('Resolution Timing', () => {
     });
 
     it('resolves queueLimit per admission attempt', async () => {
-      let queueLimit = 1;
+      const queueLimit = 1;
       const queueLimitFn = vi.fn(() => queueLimit);
 
       const bh = bulkhead({ limit: 1, queueLimit: queueLimitFn });
@@ -220,7 +220,7 @@ describe('Resolution Timing', () => {
     });
 
     it('resolves duration per reset check', async () => {
-      let duration = 100;
+      const duration = 100;
       const durationFn = vi.fn(() => duration);
       const clock = new TestClock();
 
@@ -259,7 +259,7 @@ describe('Resolution Timing', () => {
 
       const h = hedge({ delay: delayFn, maxHedges: 2, clock });
 
-      const executePromise = h.execute((signal) => {
+      const executePromise = h.execute((_signal) => {
         return clock.sleep(200).then(() => 'result');
       });
 
@@ -290,7 +290,7 @@ describe('Resolution Timing', () => {
 
       const h = hedge({ delay: 50, maxHedges: maxHedgesFn, clock });
 
-      const executePromise = h.execute((signal) => {
+      const executePromise = h.execute((_signal) => {
         return clock.sleep(200).then(() => 'result');
       });
 

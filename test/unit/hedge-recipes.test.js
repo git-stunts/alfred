@@ -5,7 +5,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { Policy, hedge, bulkhead, circuitBreaker } from '../../src/index.js';
+import { Policy } from '../../src/index.js';
 import { TestClock } from '../../src/utils/clock.js';
 
 describe('Hedge Recipes', () => {
@@ -148,7 +148,7 @@ describe('Hedge Recipes', () => {
         replica: { delay: 20, data: 'replica-data' },
       };
 
-      const fetcher = vi.fn().mockImplementation(async (url, signal) => {
+      const fetcher = vi.fn().mockImplementation(async (url, _signal) => {
         const config = url.includes('primary') ? responses.primary : responses.replica;
         await clock.sleep(config.delay);
         return { ok: true, data: config.data };
@@ -180,7 +180,7 @@ describe('Hedge Recipes', () => {
     it('falls back if first endpoint fails', async () => {
       const clock = new TestClock();
 
-      const fetcher = vi.fn().mockImplementation(async (url, signal) => {
+      const fetcher = vi.fn().mockImplementation(async (url, _signal) => {
         if (url.includes('primary')) {
           throw new Error('Primary down');
         }
