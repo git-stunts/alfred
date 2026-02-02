@@ -230,6 +230,7 @@ The fluent API is recommended for readability. Use functional `compose()` when b
 - [Telemetry & Observability](#telemetry--observability)
 - [Testing](#testing)
 - [Error Types](#error-types)
+- [Resolution Timing](#resolution-timing-dynamic-options)
 
 ---
 
