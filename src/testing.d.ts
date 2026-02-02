@@ -353,7 +353,7 @@ export interface RateLimit {
   /** Executes a function with rate limiting. */
   execute<T>(fn: () => Promise<T>): Promise<T>;
   /** Current rate limiter statistics. */
-  readonly stats: { available: number; pending: number };
+  readonly stats: { tokens: number; queued: number };
 }
 
 /**
