@@ -28,6 +28,7 @@ export {
   CircuitOpenError,
   TimeoutError,
   BulkheadRejectedError,
+  RateLimitExceededError,
 } from './errors.js';
 
 // Resilience policies
@@ -36,6 +37,7 @@ export { circuitBreaker } from './policies/circuit-breaker.js';
 export { timeout } from './policies/timeout.js';
 export { bulkhead } from './policies/bulkhead.js';
 export { hedge } from './policies/hedge.js';
+export { rateLimit } from './policies/rate-limit.js';
 
 // Composition utilities
 export { compose, fallback, race } from './compose.js';

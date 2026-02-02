@@ -122,6 +122,22 @@ export interface HedgeOptions {
 }
 
 /**
+ * Options for the Rate Limit policy.
+ */
+export interface RateLimitOptions {
+  /** Maximum requests per second. */
+  rate: Resolvable<number>;
+  /** Maximum burst size (tokens in bucket). Default: rate */
+  burst?: Resolvable<number>;
+  /** Maximum pending requests in queue. Default: 0 */
+  queueLimit?: Resolvable<number>;
+  /** Clock implementation for testing. */
+  clock?: TestClock | SystemClock;
+  /** Telemetry sink for observability. */
+  telemetry?: TelemetrySink;
+}
+
+/**
  * A structured event emitted by the telemetry system.
  */
 export interface TelemetryEvent {
@@ -260,6 +276,17 @@ export class BulkheadRejectedError extends Error {
 }
 
 /**
+ * Error thrown when the rate limit is exceeded.
+ */
+export class RateLimitExceededError extends Error {
+  /** The configured rate limit (requests per second). */
+  rate: number;
+  /** Seconds until the next request can be made. */
+  retryAfter: number;
+  constructor(rate: number, retryAfter: number);
+}
+
+/**
  * Executes an async function with configurable retry logic.
  */
 export function retry<T>(
@@ -320,6 +347,21 @@ export interface Hedge {
 export function hedge(options: HedgeOptions): Hedge;
 
 /**
+ * Represents a Rate Limit instance.
+ */
+export interface RateLimit {
+  /** Executes a function with rate limiting. */
+  execute<T>(fn: () => Promise<T>): Promise<T>;
+  /** Current rate limiter statistics. */
+  readonly stats: { available: number; pending: number };
+}
+
+/**
+ * Creates a Rate Limit policy using token bucket algorithm.
+ */
+export function rateLimit(options: RateLimitOptions): RateLimit;
+
+/**
  * Composes multiple policies into a single executable policy.
  */
 export function compose(...policies: any[]): { execute<T>(fn: () => Promise<T>): Promise<T> };
@@ -355,6 +397,8 @@ export class Policy {
   static bulkhead(options: BulkheadOptions): Policy;
   /** Creates a Hedge policy wrapper. */
   static hedge(options: HedgeOptions): Policy;
+  /** Creates a Rate Limit policy wrapper. */
+  static rateLimit(options: RateLimitOptions): Policy;
   /** Creates a pass-through (no-op) policy. */
   static noop(): Policy;
 

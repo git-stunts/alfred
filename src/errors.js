@@ -70,3 +70,19 @@ export class BulkheadRejectedError extends Error {
     this.queueLimit = queueLimit;
   }
 }
+
+/**
+ * Error thrown when rate limit is exceeded.
+ */
+export class RateLimitExceededError extends Error {
+  /**
+   * @param {number} rate - Configured rate (tokens/sec)
+   * @param {number} retryAfter - Suggested ms to wait before retry
+   */
+  constructor(rate, retryAfter) {
+    super(`Rate limit exceeded: ${rate} req/s (retry after ${retryAfter}ms)`);
+    this.name = 'RateLimitExceededError';
+    this.rate = rate;
+    this.retryAfter = retryAfter;
+  }
+}
