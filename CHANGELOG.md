@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.5.0] - 2026-02-02
+
+### Added
+
+- **Policy Algebra Documentation**: New README section explaining `wrap`, `or`, and `race` composition operators with real-world examples.
+- **README Smoke Tests**: `examples/readme-smoke.test.js` validates all README code snippets actually work.
+- **Timeout Clock Injection**: `timeout()` now accepts `options.clock` for deterministic testing with `TestClock`.
+
+### Fixed
+
+- **README Quick Start**: Fixed invalid JS in quote, corrected compose/fallback/race examples to use Policy objects.
+
+### Changed
+
+- **ROADMAP.md**: Comprehensive milestone breakdown from v0.5 through v1.0 with user stories, requirements, and test specs.
+
 ## [0.4.0] - 2026-02-02
 
 ### Added
