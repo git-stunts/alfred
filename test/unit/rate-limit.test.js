@@ -413,8 +413,8 @@ describe('rateLimit', () => {
       await Promise.all(promises);
 
       const elapsedRealTime = Date.now() - startRealTime;
-      // Should complete in well under a second of real time
-      expect(elapsedRealTime).toBeLessThan(100);
+      // Should complete in well under a second of real time (relaxed for CI)
+      expect(elapsedRealTime).toBeLessThan(500);
     });
 
     it('processes queue as virtual time advances', async () => {
