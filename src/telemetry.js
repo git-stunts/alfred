@@ -1,6 +1,10 @@
 /**
- * @fileoverview Telemetry system for observing resilience policy behavior.
- * Provides composable sinks for capturing events.
+ * Telemetry system for observing resilience policy behavior.
+ *
+ * Provides composable sinks for capturing, logging, and aggregating
+ * events emitted by resilience policies.
+ *
+ * @module
  */
 
 /**
@@ -22,13 +26,21 @@
  */
 export class InMemorySink {
   constructor() {
+    /** @type {TelemetryEvent[]} */
     this.events = [];
   }
 
+  /**
+   * Records an event to the in-memory array.
+   * @param {TelemetryEvent} event
+   */
   emit(event) {
     this.events.push(event);
   }
 
+  /**
+   * Clears all recorded events.
+   */
   clear() {
     this.events = [];
   }
@@ -39,6 +51,10 @@ export class InMemorySink {
  * @implements {TelemetrySink}
  */
 export class ConsoleSink {
+  /**
+   * Logs an event to the console.
+   * @param {TelemetryEvent} event
+   */
   emit(event) {
     const { type, timestamp = Date.now(), ...rest } = event;
     // eslint-disable-next-line no-console
@@ -47,10 +63,14 @@ export class ConsoleSink {
 }
 
 /**
- * Sink that does nothing. Default.
+ * Sink that does nothing. Default when telemetry is not needed.
  * @implements {TelemetrySink}
  */
 export class NoopSink {
+  /**
+   * Discards the event (no-op).
+   * @param {TelemetryEvent} _event
+   */
   emit(_event) {
     // No-op
   }
@@ -62,12 +82,17 @@ export class NoopSink {
  */
 export class MultiSink {
   /**
-   * @param {TelemetrySink[]} sinks
+   * Creates a MultiSink that broadcasts to all provided sinks.
+   * @param {TelemetrySink[]} sinks - Array of sinks to broadcast to.
    */
   constructor(sinks = []) {
     this.sinks = sinks;
   }
 
+  /**
+   * Broadcasts an event to all child sinks.
+   * @param {TelemetryEvent} event
+   */
   emit(event) {
     for (const sink of this.sinks) {
       sink.emit(event);

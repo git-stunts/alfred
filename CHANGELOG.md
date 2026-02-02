@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.0] - 2026-02-02
+
+### Added
+
+- **Browser Support**: Alfred now officially supports modern browsers (Chrome 85+, Firefox 79+, Safari 14+, Edge 85+).
+- **Browser Demo**: Interactive "Flaky Fetch Lab" (`npm run demo:web`) demonstrates resilience policies running in a browser.
+- **Playwright Tests**: Browser compatibility tests verify retry, timeout, bulkhead, and circuit breaker work in Chromium.
+- **Resolution Timing Documentation**: New README section documenting when dynamic options (functions) are resolved for each policy—per attempt, per admission, per event, or per execute.
+- **Resolution Timing Tests**: Comprehensive test suite verifying option resolution timing with call counters.
+- **Hedge Safety Guardrails**: Documentation for safe hedge usage—idempotent operations only, AbortSignal handling, bulkhead composition.
+- **Hedge Recipes**: `hedgeRead` pattern for database/cache operations, `happyEyeballsFetch` for multi-endpoint racing.
+- **Full JSDoc Coverage**: All source files and TypeScript declarations now have complete documentation.
+
+### Fixed
+
+- **JSR Module Docs**: Entrypoints now use `@module` tag with examples for proper JSR documentation.
+- **JSR Publish Config**: Fixed exclude list to only publish required files (was including examples, scripts, etc.).
+- **TypeScript Declarations**: `testing.d.ts` updated with missing types (`HedgeOptions`, `MetricsSink`, `Resolvable`, `Policy.hedge`).
+- **Example in index.d.ts**: Fixed incorrect compose example to use proper Policy fluent API.
+
+### Changed
+
+- **ROADMAP.md**: v0.5 and v0.6 milestones marked complete.
+
 ## [0.5.0] - 2026-02-02
 
 ### Added

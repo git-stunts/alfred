@@ -1,19 +1,18 @@
 /**
  * @module @git-stunts/alfred
  * @description Production-grade resilience patterns for async operations.
- * Includes Retry, Circuit Breaker, Timeout, and Bulkhead policies.
+ * Includes Retry, Circuit Breaker, Timeout, Bulkhead, and Hedge policies.
  *
  * @example
  * ```ts
- * import { compose, retry, circuitBreaker, timeout } from "@git-stunts/alfred";
+ * import { Policy } from "@git-stunts/alfred";
  *
- * const policy = compose(
- *   retry({ retries: 3 }),
- *   circuitBreaker({ threshold: 5, duration: 60000 }),
- *   timeout(5000)
- * );
+ * const resilient = Policy.timeout(5_000)
+ *   .wrap(Policy.retry({ retries: 3, backoff: "exponential" }))
+ *   .wrap(Policy.circuitBreaker({ threshold: 5, duration: 60_000 }))
+ *   .wrap(Policy.bulkhead({ limit: 10 }));
  *
- * await policy.execute(() => fetch("https://api.example.com"));
+ * const data = await resilient.execute(() => fetch("https://api.example.com"));
  * ```
  */
 
@@ -164,7 +163,7 @@ export class NoopSink implements TelemetrySink {
  * Broadcasts telemetry events to multiple other sinks.
  */
 export class MultiSink implements TelemetrySink {
-  constructor(sinks: TelemetrySink[]);
+  constructor(sinks?: TelemetrySink[]);
   emit(event: TelemetryEvent): void;
 }
 
@@ -365,14 +364,34 @@ export class Policy {
   execute<T>(fn: () => Promise<T>): Promise<T>;
 }
 
+/**
+ * System clock using real time.
+ * Uses runtime-aware timer management for clean process exits.
+ */
 export class SystemClock {
+  /** Returns current time in milliseconds since Unix epoch. */
   now(): number;
+  /** Sleeps for the specified duration. */
   sleep(ms: number): Promise<void>;
 }
 
+/**
+ * Test clock for deterministic tests.
+ * Allows manual control of time progression without real delays.
+ */
 export class TestClock {
+  /** Returns current virtual time in milliseconds. */
   now(): number;
+  /** Creates a sleep promise that resolves when time is advanced. */
   sleep(ms: number): Promise<void>;
+  /** Process any timers ready at current time. */
   tick(ms?: number): Promise<void>;
+  /** Advances time and resolves any pending timers. */
   advance(ms: number): Promise<void>;
+  /** Sets absolute time. */
+  setTime(time: number): void;
+  /** Returns number of pending timers. */
+  readonly pendingCount: number;
+  /** Clears all pending timers and resets time to 0. */
+  reset(): void;
 }

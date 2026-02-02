@@ -83,8 +83,23 @@ Alfred is designed to be platform-agnostic and tested against:
 - **Node.js** (>= 20)
 - **Bun** (>= 1)
 - **Deno** (>= 1.35)
+- **Browsers** (Chrome 85+, Firefox 79+, Safari 14+, Edge 85+)
 
-Uses standard Web APIs (AbortController, AbortSignal) and runtime-aware clock management to ensure clean process exits (e.g. timer unref where applicable).
+Uses standard Web APIs (AbortController, AbortSignal, Promise.any) with no Node-specific dependencies. Runtime-aware clock management ensures clean process exits in server environments.
+
+### Browser Demo
+
+Run the interactive "Flaky Fetch Lab" to see resilience policies in action:
+
+```bash
+npm run demo:web:install && npm run demo:web
+```
+
+Or run the Playwright browser tests:
+
+```bash
+npm run demo:web:install && npm run test:browser
+```
 
 ---
 
@@ -230,6 +245,7 @@ The fluent API is recommended for readability. Use functional `compose()` when b
 - [Telemetry & Observability](#telemetry--observability)
 - [Testing](#testing)
 - [Error Types](#error-types)
+- [Resolution Timing](#resolution-timing-dynamic-options)
 
 ---
 
@@ -405,6 +421,90 @@ const result = await hedger.execute((signal) => fetch('https://api.example.com/d
 | ----------- | -------- | -------- | -------------------------------------------- |
 | `delay`     | `number` | required | Milliseconds to wait before spawning a hedge |
 | `maxHedges` | `number` | `1`      | Maximum number of hedge requests to spawn    |
+
+### Safety Guardrails
+
+> **Warning:** Hedging spawns parallel requests. Use responsibly to avoid overloading backends.
+
+1. **Only hedge idempotent operations.** Reads, lookups, and GET requests are safe. Writes, payments, and state mutations are not — you may end up with duplicate side effects.
+
+2. **Always use AbortSignal.** Your operation receives an `AbortSignal` that fires when a faster hedge wins. Honor it to cancel in-flight work (fetch, database queries, etc.).
+
+3. **Combine with bulkhead + circuit breaker.** Prevent self-DDOS and cascading failures:
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+// Safe hedging: bulkhead limits total concurrency, circuit breaker fails fast
+const safeHedge = Policy.hedge({ delay: 100, maxHedges: 2 })
+  .wrap(Policy.bulkhead({ limit: 10 }))
+  .wrap(Policy.circuitBreaker({ threshold: 5, duration: 30_000 }));
+
+await safeHedge.execute((signal) => fetch(url, { signal }));
+```
+
+4. **Set reasonable delays.** The `delay` should be based on your P50/P90 latency. Too short = excessive load. Too long = no benefit.
+
+### Recipe: hedgeRead (Read-Only Operations)
+
+A reusable pattern for hedging database reads or cache lookups:
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+function createHedgedReader(options = {}) {
+  const { delay = 50, maxHedges = 1, concurrencyLimit = 5 } = options;
+
+  return Policy.hedge({ delay, maxHedges }).wrap(Policy.bulkhead({ limit: concurrencyLimit }));
+}
+
+const hedgedRead = createHedgedReader({ delay: 50, maxHedges: 1 });
+
+// Use for any read-only operation
+const user = await hedgedRead.execute((signal) => db.users.findById(id, { signal }));
+const cached = await hedgedRead.execute((signal) => cache.get(key, { signal }));
+```
+
+### Recipe: Happy Eyeballs (Parallel Endpoints)
+
+Race requests to multiple endpoints (e.g., IPv4 vs IPv6, primary vs replica):
+
+```javascript
+import { Policy } from '@git-stunts/alfred';
+
+async function happyEyeballsFetch(urls, options = {}) {
+  const { delay = 50 } = options;
+
+  // Create a hedge policy that spawns one hedge per additional URL
+  const racer = Policy.hedge({ delay, maxHedges: urls.length - 1 });
+
+  let urlIndex = 0;
+  return racer.execute((signal) => {
+    const url = urls[urlIndex++ % urls.length];
+    return fetch(url, { signal }).then((res) => {
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res;
+    });
+  });
+}
+
+// First successful response wins
+const response = await happyEyeballsFetch([
+  'https://api-primary.example.com/data',
+  'https://api-replica.example.com/data',
+]);
+```
+
+### Runtime Requirements
+
+Hedge uses `Promise.any()` internally. This is available in:
+
+- Node.js >= 15.0.0
+- Deno >= 1.2
+- Bun >= 1.0
+- Modern browsers (Chrome 85+, Firefox 79+, Safari 14+)
+
+For older runtimes, use a polyfill like [core-js](https://github.com/zloirock/core-js#promiseany) or [promise.any](https://www.npmjs.com/package/promise.any).
 
 ---
 
@@ -658,6 +758,64 @@ try {
 | `CircuitOpenError`      | Circuit breaker is open           | `openedAt`, `failureCount` |
 | `TimeoutError`          | Operation exceeded time limit     | `timeout`, `elapsed`       |
 | `BulkheadRejectedError` | Bulkhead limit and queue are full | `limit`, `queueLimit`      |
+
+---
+
+## Resolution Timing (Dynamic Options)
+
+All policy options can be passed as **functions** for dynamic/live-tunable behavior. This table documents **when** each option is resolved:
+
+| Policy             | Option             | Resolution Timing | Description                                   |
+| ------------------ | ------------------ | ----------------- | --------------------------------------------- |
+| **retry**          | `retries`          | per attempt       | Checked after each failure                    |
+| **retry**          | `delay`            | per attempt       | Calculated before each backoff sleep          |
+| **retry**          | `maxDelay`         | per attempt       | Applied when calculating delay                |
+| **retry**          | `backoff`          | per attempt       | Strategy resolved per delay calculation       |
+| **retry**          | `jitter`           | per attempt       | Jitter type resolved per delay calculation    |
+| **bulkhead**       | `limit`            | per admission     | Checked when request tries to execute         |
+| **bulkhead**       | `queueLimit`       | per admission     | Checked when request tries to queue           |
+| **circuitBreaker** | `threshold`        | per event         | Checked on each failure                       |
+| **circuitBreaker** | `duration`         | per event         | Checked when testing for half-open transition |
+| **circuitBreaker** | `successThreshold` | per event         | Checked on each success in half-open state    |
+| **timeout**        | `ms`               | per execute       | Resolved once at start of timeout             |
+| **hedge**          | `delay`            | per execute       | Resolved once at start of execute             |
+| **hedge**          | `maxHedges`        | per execute       | Resolved once at start of execute             |
+
+### Resolution Timing Semantics
+
+- **per execute**: Option is resolved once when `execute()` is called. Changes during execution have no effect.
+- **per attempt**: Option is resolved each time an attempt/retry occurs. Allows mid-execution tuning.
+- **per admission**: Option is resolved each time a request attempts to enter the bulkhead.
+- **per event**: Option is resolved when the relevant event (failure, success, state check) occurs.
+
+### Example: Dynamic Retry Limit
+
+```javascript
+let maxRetries = 2;
+
+// Pass a function to make it dynamic
+await retry(operation, {
+  retries: () => maxRetries, // Resolved per attempt
+  delay: 100,
+});
+
+// In another part of your code, you can adjust:
+maxRetries = 5; // Future failures will see the new limit
+```
+
+### Example: Dynamic Bulkhead Limit
+
+```javascript
+let concurrencyLimit = 10;
+
+const bh = bulkhead({
+  limit: () => concurrencyLimit, // Resolved per admission
+  queueLimit: 20,
+});
+
+// Later, reduce concurrency (takes effect on next admission)
+concurrencyLimit = 5;
+```
 
 ---
 

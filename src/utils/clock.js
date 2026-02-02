@@ -1,11 +1,31 @@
 /**
+ * @fileoverview Clock abstractions for time-based operations.
+ *
+ * Provides SystemClock for production use and TestClock for deterministic testing.
+ * All time-based policies accept a clock option for testability.
+ *
+ * @module @git-stunts/alfred/utils/clock
+ */
+
+/**
  * System clock using real time.
+ * Uses runtime-aware timer management (unref) to allow clean process exits.
  */
 export class SystemClock {
+  /**
+   * Returns the current time in milliseconds since Unix epoch.
+   * @returns {number}
+   */
   now() {
     return Date.now();
   }
 
+  /**
+   * Sleeps for the specified duration.
+   * Timer is unref'd to prevent blocking process exit.
+   * @param {number} ms - Milliseconds to sleep
+   * @returns {Promise<void>}
+   */
   async sleep(ms) {
     return new Promise((resolve) => {
       const timer = setTimeout(resolve, ms);
@@ -21,14 +41,20 @@ export class SystemClock {
 
 /**
  * Test clock for deterministic tests.
- * Allows manual control of time progression.
+ * Allows manual control of time progression without real delays.
  */
 export class TestClock {
   constructor() {
+    /** @type {number} */
     this._time = 0;
+    /** @type {Array<{triggerAt: number, resolve: () => void}>} */
     this._pendingTimers = [];
   }
 
+  /**
+   * Returns the current virtual time in milliseconds.
+   * @returns {number}
+   */
   now() {
     return this._time;
   }

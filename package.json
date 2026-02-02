@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/alfred",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "Production-grade resilience patterns for async ops: retry/backoff+jitter, circuit breaker, bulkhead, timeout.",
   "type": "module",
   "sideEffects": false,
@@ -23,8 +23,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:browser": "npm --prefix examples/web run test",
     "lint": "eslint .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "demo:web": "npm --prefix examples/web run dev",
+    "demo:web:install": "npm --prefix examples/web install"
   },
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",
@@ -53,7 +56,8 @@
     "bulkhead",
     "timeout",
     "fault-tolerance",
-    "async"
+    "async",
+    "browser"
   ],
   "devDependencies": {
     "@eslint/js": "^9.17.0",

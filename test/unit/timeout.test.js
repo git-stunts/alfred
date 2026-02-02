@@ -43,20 +43,24 @@ describe('timeout', () => {
     });
 
     it('TimeoutError includes timeout and elapsed values', async () => {
-      const fn = vi.fn().mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => resolve('too late'), 200);
-          })
-      );
+      const clock = new TestClock();
+
+      const fn = () =>
+        new Promise((resolve) => {
+          clock.sleep(200).then(() => resolve('too late'));
+        });
+
+      const promise = timeout(50, fn, { clock });
+
+      await clock.advance(50);
 
       try {
-        await timeout(50, fn);
+        await promise;
         expect.fail('Should have thrown');
       } catch (e) {
         expect(e).toBeInstanceOf(TimeoutError);
         expect(e.timeout).toBe(50);
-        expect(e.elapsed).toBeGreaterThanOrEqual(50);
+        expect(e.elapsed).toBe(50);
         expect(e.message).toContain('50ms');
       }
     });
@@ -370,6 +374,7 @@ describe('timeout', () => {
         expect(e).toBeInstanceOf(TimeoutError);
         expect(e.timeout).toBe(3000);
         expect(e.elapsed).toBe(3000);
+        expect(e.message).toContain('3000ms');
       }
     });
 

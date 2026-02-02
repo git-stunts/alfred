@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Alfred - Flaky Fetch Lab</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      body {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+        background: #1a1a2e;
+        color: #eee;
+      }
+      h1 {
+        color: #00d9ff;
+        margin-bottom: 5px;
+      }
+      .subtitle {
+        color: #888;
+        margin-bottom: 20px;
+      }
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-bottom: 20px;
+      }
+      .control {
+        background: #16213e;
+        padding: 15px;
+        border-radius: 8px;
+      }
+      .control label {
+        display: block;
+        margin-bottom: 8px;
+        color: #00d9ff;
+        font-size: 14px;
+      }
+      .control input[type='range'] {
+        width: 100%;
+      }
+      .control .value {
+        font-size: 24px;
+        font-weight: bold;
+      }
+      .toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .toggle input {
+        width: 20px;
+        height: 20px;
+      }
+      .buttons {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      button {
+        background: #00d9ff;
+        color: #1a1a2e;
+        border: none;
+        padding: 12px 24px;
+        font-size: 16px;
+        font-weight: bold;
+        border-radius: 6px;
+        cursor: pointer;
+      }
+      button:hover {
+        background: #00b8d9;
+      }
+      button:disabled {
+        background: #444;
+        color: #888;
+        cursor: not-allowed;
+      }
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+      .stat {
+        background: #16213e;
+        padding: 15px;
+        border-radius: 8px;
+        text-align: center;
+      }
+      .stat .label {
+        font-size: 12px;
+        color: #888;
+        text-transform: uppercase;
+      }
+      .stat .value {
+        font-size: 28px;
+        font-weight: bold;
+        margin-top: 5px;
+      }
+      .stat.success .value {
+        color: #4ade80;
+      }
+      .stat.fail .value {
+        color: #f87171;
+      }
+      .stat.reject .value {
+        color: #fbbf24;
+      }
+      .stat.circuit .value {
+        color: #c084fc;
+      }
+      .stat.time .value {
+        color: #60a5fa;
+      }
+      .log {
+        background: #0f0f23;
+        border-radius: 8px;
+        padding: 15px;
+        height: 300px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+      }
+      .log-entry {
+        margin: 2px 0;
+      }
+      .log-entry.success {
+        color: #4ade80;
+      }
+      .log-entry.fail {
+        color: #f87171;
+      }
+      .log-entry.retry {
+        color: #fbbf24;
+      }
+      .log-entry.timeout {
+        color: #f87171;
+      }
+      .log-entry.reject {
+        color: #fbbf24;
+      }
+      .log-entry.circuit {
+        color: #c084fc;
+      }
+      .log-entry.info {
+        color: #60a5fa;
+      }
+      .comparison {
+        margin-top: 20px;
+        padding: 15px;
+        background: #16213e;
+        border-radius: 8px;
+      }
+      .comparison h3 {
+        margin: 0 0 10px 0;
+        color: #00d9ff;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Flaky Fetch Lab</h1>
+    <p class="subtitle">Proving @git-stunts/alfred works in the browser</p>
+
+    <div class="controls">
+      <div class="control">
+        <label>Retry Attempts</label>
+        <input type="range" id="retries" min="0" max="5" value="3" />
+        <div class="value" id="retries-val">3</div>
+      </div>
+      <div class="control">
+        <label>Bulkhead Limit (concurrency)</label>
+        <input type="range" id="bulkhead" min="1" max="20" value="5" />
+        <div class="value" id="bulkhead-val">5</div>
+      </div>
+      <div class="control">
+        <label>Timeout (ms)</label>
+        <input type="range" id="timeout" min="100" max="1000" step="50" value="400" />
+        <div class="value" id="timeout-val">400</div>
+      </div>
+      <div class="control">
+        <label>Circuit Breaker Threshold</label>
+        <input type="range" id="circuit" min="1" max="10" value="5" />
+        <div class="value" id="circuit-val">5</div>
+      </div>
+    </div>
+
+    <div class="controls">
+      <div class="control toggle">
+        <input type="checkbox" id="enable" checked />
+        <label for="enable">Enable Resilience Policies</label>
+      </div>
+    </div>
+
+    <div class="buttons">
+      <button id="go">Run 50 Requests</button>
+      <button id="clear">Clear Log</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat success">
+        <div class="label">Success</div>
+        <div class="value" id="stat-success">0</div>
+      </div>
+      <div class="stat fail">
+        <div class="label">Failed</div>
+        <div class="value" id="stat-fail">0</div>
+      </div>
+      <div class="stat reject">
+        <div class="label">Rejected</div>
+        <div class="value" id="stat-reject">0</div>
+      </div>
+      <div class="stat circuit">
+        <div class="label">Circuit Opens</div>
+        <div class="value" id="stat-circuit">0</div>
+      </div>
+      <div class="stat time">
+        <div class="label">Elapsed (ms)</div>
+        <div class="value" id="stat-time">-</div>
+      </div>
+    </div>
+
+    <div class="log" id="log"></div>
+
+    <div class="comparison">
+      <h3>What to observe</h3>
+      <ul>
+        <li>
+          <strong>Resilience OFF:</strong> Many failures, some requests hang forever, high latency
+          variance
+        </li>
+        <li>
+          <strong>Resilience ON:</strong> Retries recover transient failures, timeouts kill hangs,
+          bulkhead controls concurrency, circuit breaker fails fast when backend is overwhelmed
+        </li>
+      </ul>
+    </div>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>

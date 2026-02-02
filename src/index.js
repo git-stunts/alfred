@@ -1,6 +1,23 @@
 /**
- * @fileoverview Main entry point for @git-stunts/alfred resilience library.
- * Exports all public APIs for building resilient applications.
+ * Production-grade resilience patterns for async operations.
+ *
+ * Alfred provides composable policies for retry, circuit breaker, bulkhead,
+ * timeout, and hedge patterns with telemetry support and TestClock for
+ * deterministic testing.
+ *
+ * @example
+ * ```ts
+ * import { Policy } from "@git-stunts/alfred";
+ *
+ * const resilient = Policy.timeout(5_000)
+ *   .wrap(Policy.retry({ retries: 3, backoff: "exponential" }))
+ *   .wrap(Policy.circuitBreaker({ threshold: 5, duration: 60_000 }))
+ *   .wrap(Policy.bulkhead({ limit: 10 }));
+ *
+ * const data = await resilient.execute(() => fetch("https://api.example.com"));
+ * ```
+ *
+ * @module
  */
 
 // @ts-self-types="./index.d.ts"

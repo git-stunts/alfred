@@ -1,4 +1,13 @@
 /**
+ * @fileoverview Custom error types for resilience policy failures.
+ *
+ * Each error includes contextual metadata to aid debugging and
+ * error handling in application code.
+ *
+ * @module @git-stunts/alfred/errors
+ */
+
+/**
  * Error thrown when all retry attempts are exhausted.
  */
 export class RetryExhaustedError extends Error {
