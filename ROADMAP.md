@@ -42,6 +42,16 @@ Alfred becomes a **runtime-controlled resilience layer**:
 - [ ] v0.10 — Control Plane Command Channel + Audit Ordering (`@git-stunts/alfred-live`)
 - [ ] v1.0 — Production Contract Release (all packages)
 
+## Control Plane Interfaces
+
+The control plane is intentionally layered. Interfaces appear in this order:
+
+1. **In-process API** (v0.8): `ConfigRegistry` + `CommandRouter` used directly in code.
+2. **Live policy wrappers** (v0.9): `Policy.live*` helpers that wrap core policies, still in-process.
+3. **Command channel + CLI** (v0.10): JSONL envelope + `alfredctl` for external control.
+
+Telemetry transport packages (e.g. `@git-stunts/alfred-transport-*`) are a separate track and do not carry control plane commands.
+
 ---
 
 ## Milestone v0.5 — Correctness & Coherence
