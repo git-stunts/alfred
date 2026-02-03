@@ -1,0 +1,26 @@
+{
+  "name": "@git-stunts/alfred-live",
+  "version": "0.7.0",
+  "description": "In-memory control plane for Alfred: adaptive values, config registry, command router.",
+  "license": "Apache-2.0",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "publish": {
+    "exclude": [
+      ".github",
+      ".devcontainer",
+      "docker",
+      "examples",
+      "scripts",
+      "test",
+      "node_modules",
+      "coverage",
+      ".editorconfig",
+      "eslint.config.js",
+      "package-lock.json",
+      "ROADMAP.md",
+      "setup-hooks.sh"
+    ]
+  }
+}

@@ -15,20 +15,25 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - run: npm ci
-      - run: npm run lint
-      - run: npm test
+      - run: pnpm install
+      - run: pnpm lint
+      - run: pnpm test
 
       # Browser tests
-      - run: npm run demo:web:install
-      - run: npx --prefix examples/web playwright install --with-deps chromium
-      - run: npm run test:browser
+      - run: pnpm --filter @git-stunts/alfred demo:web:install
+      - run: npx --prefix alfred/examples/web playwright install --with-deps chromium
+      - run: pnpm --filter @git-stunts/alfred test:browser
 
       # Cloudflare Workers tests
-      - run: docker build -f examples/cloudflare-worker/Dockerfile -t alfred-cf-test .
+      - run: docker build -f alfred/examples/cloudflare-worker/Dockerfile -t alfred-cf-test alfred
       - run: docker run --rm alfred-cf-test

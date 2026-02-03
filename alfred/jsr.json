@@ -14,13 +14,14 @@
       ".devcontainer",
       "docker",
       "examples",
-      "scripts",
       "test",
       "node_modules",
+      "coverage",
       ".editorconfig",
       "eslint.config.js",
       "package-lock.json",
       "ROADMAP.md",
+      "scripts",
       "setup-hooks.sh"
     ]
   }

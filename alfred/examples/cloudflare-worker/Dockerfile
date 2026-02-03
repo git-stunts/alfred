@@ -1,4 +1,4 @@
-# Build from repo root: docker build -f examples/cloudflare-worker/Dockerfile .
+# Build from repo root: docker build -f alfred/examples/cloudflare-worker/Dockerfile alfred
 FROM node:20-slim
 
 WORKDIR /app
