@@ -1,8 +1,7 @@
 {
   "name": "@git-stunts/alfred",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Production-grade resilience patterns for async ops: retry/backoff+jitter, circuit breaker, bulkhead, timeout.",
-
   "license": "Apache-2.0",
   "exports": {
     ".": "./src/index.js",
@@ -14,13 +13,13 @@
       ".devcontainer",
       "docker",
       "examples",
-      "scripts",
       "test",
       "node_modules",
+      "coverage",
       ".editorconfig",
       "eslint.config.js",
       "package-lock.json",
-      "ROADMAP.md",
+      "scripts",
       "setup-hooks.sh"
     ]
   }

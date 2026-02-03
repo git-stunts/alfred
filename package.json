@@ -1,69 +1,19 @@
 {
-  "name": "@git-stunts/alfred",
-  "version": "0.7.0",
-  "description": "Production-grade resilience patterns for async ops: retry/backoff+jitter, circuit breaker, bulkhead, timeout.",
-  "type": "module",
-  "sideEffects": false,
-  "main": "./src/index.js",
-  "types": "./src/index.d.ts",
-  "exports": {
-    ".": {
-      "types": "./src/index.d.ts",
-      "default": "./src/index.js"
-    },
-    "./testing": {
-      "types": "./src/testing.d.ts",
-      "default": "./src/testing.js"
-    },
-    "./package.json": "./package.json"
-  },
-  "engines": {
-    "node": ">=20.0.0"
-  },
+  "name": "@git-stunts/alfred-workspace",
+  "private": true,
+  "version": "0.0.0",
   "scripts": {
-    "test": "vitest run",
-    "test:watch": "vitest",
-    "test:browser": "npm --prefix examples/web run test",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "demo:web": "npm --prefix examples/web run dev",
-    "demo:web:install": "npm --prefix examples/web install"
-  },
-  "author": "James Ross <james@flyingrobots.dev>",
-  "license": "Apache-2.0",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/git-stunts/alfred.git"
-  },
-  "files": [
-    "src",
-    "README.md",
-    "LICENSE",
-    "CHANGELOG.md",
-    "ROADMAP.md",
-    "jsr.json",
-    "package.json"
-  ],
-  "keywords": [
-    "resilience",
-    "resiliency",
-    "retry",
-    "backoff",
-    "jitter",
-    "decorrelated-jitter",
-    "circuit-breaker",
-    "circuitbreaker",
-    "bulkhead",
-    "timeout",
-    "fault-tolerance",
-    "async",
-    "browser"
-  ],
-  "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@vitest/coverage-v8": "^2.1.8",
-    "eslint": "^9.17.0",
-    "prettier": "^3.4.2",
-    "vitest": "^2.1.8"
+    "test": "pnpm -r test",
+    "lint": "pnpm -r run lint",
+    "format": "pnpm -r run format",
+    "demo:web": "pnpm --filter @git-stunts/alfred demo:web",
+    "demo:web:install": "pnpm --filter @git-stunts/alfred demo:web:install",
+    "test:browser": "pnpm --filter @git-stunts/alfred test:browser",
+    "release:aggregate": "node scripts/release/aggregate.mjs --write",
+    "release:preflight": "node scripts/release/preflight.mjs",
+    "release:patch": "node scripts/release/bump.mjs patch",
+    "release:minor": "node scripts/release/bump.mjs minor",
+    "release:major": "node scripts/release/bump.mjs major",
+    "release:publish": "node scripts/release/publish.mjs"
   }
 }

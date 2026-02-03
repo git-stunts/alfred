@@ -1,0 +1,132 @@
+import js from '@eslint/js';
+
+export default [
+  // Global ignores
+  {
+    ignores: ['**/dist/**', '**/node_modules/**'],
+  },
+  js.configs.recommended,
+  {
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: {
+        process: 'readonly',
+        Buffer: 'readonly',
+        console: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        URL: 'readonly',
+        TextDecoder: 'readonly',
+        TextEncoder: 'readonly',
+        // Node.js 20+ globals
+        AbortController: 'readonly',
+        AbortSignal: 'readonly',
+        performance: 'readonly',
+        global: 'readonly',
+        DOMException: 'readonly',
+        Deno: 'readonly',
+      },
+    },
+    rules: {
+      complexity: ['error', 10],
+      'max-depth': ['error', 3],
+      'max-lines-per-function': ['error', 50],
+      'max-params': ['error', 3],
+      'max-nested-callbacks': ['error', 3],
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+      'no-console': 'error',
+      eqeqeq: ['error', 'always'],
+      curly: ['error', 'all'],
+      'no-eval': 'error',
+      'no-implied-eval': 'error',
+      'no-new-wrappers': 'error',
+      'no-caller': 'error',
+      'no-undef-init': 'error',
+      'no-var': 'error',
+      'prefer-const': 'error',
+      'prefer-template': 'error',
+      yoda: ['error', 'never'],
+      'consistent-return': 'error',
+      'no-shadow': 'error',
+      'no-use-before-define': ['error', { functions: false }],
+      'no-lonely-if': 'error',
+      'no-unneeded-ternary': 'error',
+      'one-var': ['error', 'never'],
+    },
+  },
+  // Relaxed rules for test files
+  {
+    files: ['test/**/*.js'],
+    languageOptions: {
+      globals: {
+        describe: 'readonly',
+        it: 'readonly',
+        expect: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        vi: 'readonly',
+        bench: 'readonly',
+      },
+    },
+    rules: {
+      'max-lines-per-function': 'off',
+      'max-nested-callbacks': 'off',
+      'no-console': 'off',
+      'no-shadow': 'off',
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      curly: 'off',
+    },
+  },
+  // Relaxed rules for benchmarks
+  {
+    files: ['benchmarks/**/*.js'],
+    rules: {
+      'no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
+      'no-console': 'off',
+      curly: 'off',
+    },
+  },
+  // Relaxed rules for example scripts (CLI demos)
+  {
+    files: ['examples/**/*.js'],
+    rules: {
+      'no-console': 'off',
+      'max-lines-per-function': 'off',
+      complexity: 'off',
+    },
+  },
+  // Browser globals for web examples
+  {
+    files: ['examples/web/**/*.js'],
+    languageOptions: {
+      globals: {
+        document: 'readonly',
+        window: 'readonly',
+        performance: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        Promise: 'readonly',
+        DOMException: 'readonly',
+      },
+    },
+  },
+  // Cloudflare Workers globals
+  {
+    files: ['examples/cloudflare-worker/**/*.js'],
+    languageOptions: {
+      globals: {
+        Response: 'readonly',
+        Request: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        Promise: 'readonly',
+      },
+    },
+  },
+];

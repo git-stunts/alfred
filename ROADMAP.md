@@ -1,9 +1,9 @@
 <!-- SPDX-License-Identifier: Apache-2.0 -->
 <!-- © 2026 James Ross Ω FLYING•ROBOTS -->
 
-# ROADMAP — @git-stunts/alfred
+# ROADMAP — Alfred Ecosystem
 
-Alfred is a **policy engine** for async resilience: composable, observable, testable — and eventually **operable** (live-tunable by ID without redeploy).
+This roadmap covers the Alfred monorepo and its packages. Alfred is a **policy engine** for async resilience: composable, observable, testable — and eventually **operable** (live-tunable by ID without redeploy).
 
 ## North Star
 
@@ -23,16 +23,34 @@ Alfred becomes a **runtime-controlled resilience layer**:
 3. **No global state.** Control plane is an object you pass in.
 4. **Validated updates only.** Parse/validate before apply; reject bad writes.
 5. **Audit first.** Every config change attempt is recordable (even denied).
+6. **Single-version ecosystem.** All packages bump together.
+7. **Live stays out of core.** Control plane lives in `@git-stunts/alfred-live`, not core.
+
+## Packages
+
+- `@git-stunts/alfred` — Core policies + composition + telemetry + TestClock.
+- `@git-stunts/alfred-live` — Control plane primitives + live policy wrappers + `alfredctl` CLI.
+- `@git-stunts/alfred-transport-jsonl` — Telemetry sink adapter (JSONL logger, planned).
 
 ## Version Milestones
 
-- [x] v0.5 — Correctness & Coherence
-- [x] v0.6 — Typed Knobs & Stable Semantics
-- [x] v0.7 — Rate Limiting (Throughput) Policy
-- [ ] v0.8 — Control Plane Core (In-Memory)
-- [ ] v0.9 — Live Policies by ID (No Redeploy)
-- [ ] v0.10 — Transport + Router + Audit Ordering
-- [ ] v1.0 — Production Contract Release
+- [x] v0.5 — Correctness & Coherence (`@git-stunts/alfred`)
+- [x] v0.6 — Typed Knobs & Stable Semantics (`@git-stunts/alfred`)
+- [x] v0.7 — Rate Limiting (Throughput) Policy (`@git-stunts/alfred`)
+- [ ] v0.8 — Control Plane Core (In-Memory) (`@git-stunts/alfred-live`)
+- [ ] v0.9 — Live Policies by ID (No Redeploy) (`@git-stunts/alfred-live`)
+- [ ] v0.10 — Control Plane Command Channel + Audit Ordering (`@git-stunts/alfred-live`)
+- [ ] v1.0 — Production Contract Release (all packages)
+
+## Control Plane Interfaces
+
+The control plane is intentionally layered. Interfaces appear in this order:
+
+1. **In-process API** (v0.8): `ConfigRegistry` + `CommandRouter` used directly in code.
+2. **Live policy wrappers** (v0.9): `Policy.live*` helpers that wrap core policies, still in-process.
+3. **Command channel + CLI** (v0.10): JSONL envelope + `alfredctl` for external control.
+
+Telemetry transport packages (e.g. `@git-stunts/alfred-transport-*`) are a separate track and do not carry control plane commands.
 
 ---
 
@@ -41,6 +59,9 @@ Alfred becomes a **runtime-controlled resilience layer**:
 Goal: eliminate credibility leaks (docs inconsistencies, missing imports), and make the "algebra" obvious and documented.
 
 ### v0.5.1 — README: Fix copy/paste correctness + feature discovery
+
+**Package(s)**
+`@git-stunts/alfred`
 
 **User story**
 As a developer evaluating Alfred, I want the first example to run without edits so I can trust the library.
@@ -79,6 +100,9 @@ As a developer evaluating Alfred, I want the first example to run without edits 
 ---
 
 ### v0.5.2 — Docs: "Policy algebra" section (wrap/or/race semantics)
+
+**Package(s)**
+`@git-stunts/alfred`
 
 **User story**
 As a user, I want to understand composition quickly so I can build real stacks without reading source.
@@ -119,6 +143,9 @@ As a user, I want to understand composition quickly so I can build real stacks w
 ---
 
 ### v0.5.3 — Timeout determinism: allow optional clock injection
+
+**Package(s)**
+`@git-stunts/alfred`
 
 **User story**
 As a maintainer, I want deterministic timeout tests using TestClock so the test suite is fast and stable.
@@ -167,6 +194,9 @@ Goal: normalize option resolution/snapshot timing so future "live edit" doesn't 
 
 ### v0.6.1 — Normalize Resolvable resolution rules across policies
 
+**Package(s)**
+`@git-stunts/alfred`
+
 **User story**
 As a user, I want predictable semantics when passing functions/handles for options (e.g. limit, retries).
 
@@ -205,6 +235,9 @@ As a user, I want predictable semantics when passing functions/handles for optio
 ---
 
 ### v0.6.2 — Hedge docs + guardrails
+
+**Package(s)**
+`@git-stunts/alfred`
 
 **User story**
 As a user, I want to use hedged requests safely without accidentally DDOSing myself.
@@ -249,6 +282,9 @@ As a user, I want to use hedged requests safely without accidentally DDOSing mys
 Goal: add throughput control (token bucket / GCRA). Bulkhead limits concurrency; rate limit limits requests per time.
 
 ### v0.7.1 — Implement rateLimit(options) policy
+
+**Package(s)**
+`@git-stunts/alfred`
 
 **User story**
 As a user, I need to limit request rate (RPS) without external infrastructure.
@@ -302,6 +338,9 @@ Goal: the minimum viable control plane, Nine Lives style: ReadConfig / WriteConf
 
 ### v0.8.1 — Implement Adaptive<T> + ConfigRegistry
 
+**Package(s)**
+`@git-stunts/alfred-live`
+
 **User story**
 As an operator/dev, I want to change policy parameters at runtime in-process, safely.
 
@@ -315,6 +354,8 @@ As an operator/dev, I want to change policy parameters at runtime in-process, sa
 - ConfigRegistry:
   - register(path, adaptive, { parse, format })
   - keys(), read(path), write(path, valueString)
+  - paths are relative and slash-delimited (e.g. `bulkhead/api`)
+  - prefix semantics: `bulkhead` matches `bulkhead` + `bulkhead/*`; `bulkhead/*` matches children only; `bulkhead*` uses wildcard matching
   - Validate before apply: parsing failure rejects, old value preserved.
 
 **Acceptance criteria**
@@ -352,6 +393,9 @@ As an operator/dev, I want to change policy parameters at runtime in-process, sa
 ---
 
 ### v0.8.2 — Define command model (ReadConfig/WriteConfig/ListConfig)
+
+**Package(s)**
+`@git-stunts/alfred-live`
 
 **User story**
 As a tool author, I want a stable command API that can be transported over any protocol.
@@ -396,6 +440,9 @@ As a tool author, I want a stable command API that can be transported over any p
 Goal: Policies become operable: "liveBulkhead('bulkhead.api')" etc.
 
 ### v0.9.1 — Add Policy.live\* constructors (retry/bulkhead/circuit/timeout)
+
+**Package(s)**
+`@git-stunts/alfred-live` (wraps `@git-stunts/alfred` policies)
 
 **User story**
 As an operator, I want to tune a live system without redeploying, using stable IDs.
@@ -445,6 +492,9 @@ As an operator, I want to tune a live system without redeploying, using stable I
 
 ### v0.9.2 — Resizable bulkhead semantics (soft shrink)
 
+**Package(s)**
+`@git-stunts/alfred`
+
 **User story**
 As an operator, I want to reduce concurrency safely without killing in-flight operations.
 
@@ -485,11 +535,14 @@ As an operator, I want to reduce concurrency safely without killing in-flight op
 
 ---
 
-## Milestone v0.10 — Transport + Router + Audit Ordering
+## Milestone v0.10 — Control Plane Command Channel + Audit Ordering
 
-Goal: make the control plane operable outside the process: JSONL transport + canonical envelope + audit-first ordering.
+Goal: make the control plane operable outside the process: command channel + canonical envelope + audit-first ordering.
 
-### v0.10.1 — Canonical transport envelope + JSONL codec
+### v0.10.1 — Canonical command envelope + JSONL codec + CLI
+
+**Package(s)**
+`@git-stunts/alfred-live`
 
 **User story**
 As a CLI/tooling user, I want to send commands to Alfred over stdin/stdout safely and predictably.
@@ -498,25 +551,27 @@ As a CLI/tooling user, I want to send commands to Alfred over stdin/stdout safel
 
 - Envelope:
   - id, cmd, args, optional auth
-- JSONL codec:
+- JSONL codec (for commands, not telemetry):
   - decode per line
   - encode per result
 - Strict validation: reject unknown fields and malformed payloads
+- `alfredctl` CLI shipped from `@git-stunts/alfred-live`
 
 **Acceptance criteria**
 
-- node scripts/alfredctl.js can:
+- `alfredctl` can:
   - list keys
   - read config
   - write config
 
 **Scope**
 
-- JSONL only
+- JSONL only (command channel)
 
 **Out of scope**
 
 - HTTP/gRPC (future satellites)
+- Telemetry transport packages (separate track)
 
 **Test spec**
 
@@ -535,6 +590,9 @@ As a CLI/tooling user, I want to send commands to Alfred over stdin/stdout safel
 ---
 
 ### v0.10.2 — Audit-first pipeline + auth hooks
+
+**Package(s)**
+`@git-stunts/alfred-live`
 
 **User story**
 As an operator, I need a complete audit trail of config change attempts (even denied or invalid).
@@ -584,7 +642,22 @@ As an operator, I need a complete audit trail of config change attempts (even de
 
 Goal: stop moving cheese. API stability, deterministic tests, docs complete, and "operable" story is real.
 
+---
+
+## Telemetry Transport Packages (Separate Track)
+
+Telemetry transports are **not** the same thing as the control plane command channel. Packages with `transport` in the name are telemetry sink adapters that plug into Alfred’s telemetry system.
+
+Planned examples:
+
+- `@git-stunts/alfred-transport-jsonl` — JSONL telemetry sink
+- `@git-stunts/alfred-transport-datadog` — Datadog telemetry sink
+- `@git-stunts/alfred-transport-otlp` — OTLP/OpenTelemetry telemetry sink
+
 ### v1.0.1 — API freeze + deprecation policy
+
+**Package(s)**
+All packages (`@git-stunts/alfred`, `@git-stunts/alfred-live`, `@git-stunts/alfred-transport-*`)
 
 **User story**
 As an adopter, I want confidence that upgrades won't silently break my system.
@@ -625,6 +698,9 @@ As an adopter, I want confidence that upgrades won't silently break my system.
 
 ### v1.0.2 — Deterministic test suite: no sleeps, no flakes
 
+**Package(s)**
+`@git-stunts/alfred`
+
 **User story**
 As a maintainer, I want tests that are fast and don't fail randomly in CI.
 
@@ -659,6 +735,9 @@ As a maintainer, I want tests that are fast and don't fail randomly in CI.
 ---
 
 ### v1.0.3 — Operability proof: real example + control plane demo
+
+**Package(s)**
+`@git-stunts/alfred`, `@git-stunts/alfred-live`, `@git-stunts/alfred-transport-jsonl`
 
 **User story**
 As a user, I want an end-to-end example proving live editing works.
