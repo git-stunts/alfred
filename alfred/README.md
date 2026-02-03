@@ -40,6 +40,12 @@ npx jsr add @git-stunts/alfred
 
 ---
 
+## Roadmap
+
+See the ecosystem roadmap at [ROADMAP.md](https://github.com/git-stunts/alfred/blob/main/ROADMAP.md).
+
+---
+
 ## 20-second win
 
 A realistic stack you'll actually ship: total timeout + retry (decorrelated jitter) + circuit breaker + bulkhead.

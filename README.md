@@ -37,6 +37,10 @@ pnpm release:major
 pnpm release:publish
 ```
 
+## Roadmap
+
+See [ROADMAP.md](ROADMAP.md) for upcoming milestones and package ownership.
+
 ## Preflight Checks
 
 The publish flow runs `release:preflight`, which verifies:

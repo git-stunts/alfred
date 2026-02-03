@@ -13,6 +13,10 @@ pnpm add @git-stunts/alfred-live
 npx jsr add @git-stunts/alfred-live
 ```
 
+## Roadmap
+
+See the ecosystem roadmap at [ROADMAP.md](https://github.com/git-stunts/alfred/blob/main/ROADMAP.md).
+
 ## Status
 
 Early scaffolding. The first planned release will include:
