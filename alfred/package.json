@@ -23,11 +23,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:browser": "pnpm --dir examples/web test",
+    "test:browser": "npm --prefix examples/web run test",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "demo:web": "pnpm --dir examples/web dev",
-    "demo:web:install": "pnpm --dir examples/web install --prod=false"
+    "demo:web": "npm --prefix examples/web run dev",
+    "demo:web:install": "npm --prefix examples/web install"
   },
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",
