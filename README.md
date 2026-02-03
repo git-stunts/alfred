@@ -1,6 +1,26 @@
 # Alfred Monorepo
 
-This repository contains the Alfred package ecosystem. Each package is published independently, but the entire ecosystem shares a single version number so you never have to guess which versions are compatible.
+```text
+      .o.       oooo   .o88o.                          .o8
+     .888.      `888   888 `"                         "888
+    .8"888.      888  o888oo  oooo d8b  .ooooo.   .oooo888
+   .8' `888.     888   888    `888""8P d88' `88b d88' `888
+  .88ooo8888.    888   888     888     888ooo888 888   888
+ .8'     `888.   888   888     888     888    .o 888   888
+o88o     o8888o o888o o888o   d888b    `Y8bod8P' `Y8bod88P"
+```
+
+> _"Why do we fall, Bruce?"_
+>
+> _"So we can `retry({ backoff: 'exponential', jitter: 'decorrelated' })`."_
+
+Resilience patterns for async operations. _Tuff 'nuff for most stuff._
+
+---
+
+This repository contains the **Alfred package ecosystem**. Each package is published independently, but **the entire ecosystem shares a single version number** so you never have to guess which versions are compatible.
+
+Alfred is a **policy engine** for async resilience: composable, observable, testable — and eventually **operable** (live-tunable by ID without redeploy).
 
 ## Packages
 
@@ -9,8 +29,8 @@ This repository contains the Alfred package ecosystem. Each package is published
 
 ## Versioning Policy
 
-- All packages use the same version (for example, `0.8.0`).
-- A release bumps every package even if only one changed.
+- **All packages use the same version** (for example, `0.8.0`).
+- *A release bumps every package even if only one changed.*
 - The goal is zero version-mismatch ambiguity across the ecosystem.
 
 ## Release Flow
