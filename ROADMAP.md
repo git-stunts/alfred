@@ -24,12 +24,13 @@ Alfred becomes a **runtime-controlled resilience layer**:
 4. **Validated updates only.** Parse/validate before apply; reject bad writes.
 5. **Audit first.** Every config change attempt is recordable (even denied).
 6. **Single-version ecosystem.** All packages bump together.
+7. **Live stays out of core.** Control plane lives in `@git-stunts/alfred-live`, not core.
 
 ## Packages
 
 - `@git-stunts/alfred` — Core policies + composition + telemetry + TestClock.
-- `@git-stunts/alfred-live` — Control plane primitives (Adaptive, ConfigRegistry, command router).
-- `@git-stunts/alfred-transport-jsonl` — JSONL stdin/stdout transport (planned).
+- `@git-stunts/alfred-live` — Control plane primitives + live policy wrappers + `alfredctl` CLI.
+- `@git-stunts/alfred-transport-jsonl` — Telemetry sink adapter (JSONL logger, planned).
 
 ## Version Milestones
 
@@ -38,7 +39,7 @@ Alfred becomes a **runtime-controlled resilience layer**:
 - [x] v0.7 — Rate Limiting (Throughput) Policy (`@git-stunts/alfred`)
 - [ ] v0.8 — Control Plane Core (In-Memory) (`@git-stunts/alfred-live`)
 - [ ] v0.9 — Live Policies by ID (No Redeploy) (`@git-stunts/alfred-live`)
-- [ ] v0.10 — Transport + Router + Audit Ordering (`@git-stunts/alfred-live`, `@git-stunts/alfred-transport-jsonl`)
+- [ ] v0.10 — Control Plane Command Channel + Audit Ordering (`@git-stunts/alfred-live`)
 - [ ] v1.0 — Production Contract Release (all packages)
 
 ---
@@ -343,6 +344,8 @@ As an operator/dev, I want to change policy parameters at runtime in-process, sa
 - ConfigRegistry:
   - register(path, adaptive, { parse, format })
   - keys(), read(path), write(path, valueString)
+  - paths are relative and slash-delimited (e.g. `bulkhead/api`)
+  - prefix semantics: `bulkhead` matches `bulkhead` + `bulkhead/*`; `bulkhead/*` matches children only; `bulkhead*` uses wildcard matching
   - Validate before apply: parsing failure rejects, old value preserved.
 
 **Acceptance criteria**
@@ -429,7 +432,7 @@ Goal: Policies become operable: "liveBulkhead('bulkhead.api')" etc.
 ### v0.9.1 — Add Policy.live\* constructors (retry/bulkhead/circuit/timeout)
 
 **Package(s)**
-`@git-stunts/alfred-live` (depends on `@git-stunts/alfred`)
+`@git-stunts/alfred-live` (wraps `@git-stunts/alfred` policies)
 
 **User story**
 As an operator, I want to tune a live system without redeploying, using stable IDs.
@@ -522,14 +525,14 @@ As an operator, I want to reduce concurrency safely without killing in-flight op
 
 ---
 
-## Milestone v0.10 — Transport + Router + Audit Ordering
+## Milestone v0.10 — Control Plane Command Channel + Audit Ordering
 
-Goal: make the control plane operable outside the process: JSONL transport + canonical envelope + audit-first ordering.
+Goal: make the control plane operable outside the process: command channel + canonical envelope + audit-first ordering.
 
-### v0.10.1 — Canonical transport envelope + JSONL codec
+### v0.10.1 — Canonical command envelope + JSONL codec + CLI
 
 **Package(s)**
-`@git-stunts/alfred-transport-jsonl` (uses `@git-stunts/alfred-live`)
+`@git-stunts/alfred-live`
 
 **User story**
 As a CLI/tooling user, I want to send commands to Alfred over stdin/stdout safely and predictably.
@@ -538,25 +541,27 @@ As a CLI/tooling user, I want to send commands to Alfred over stdin/stdout safel
 
 - Envelope:
   - id, cmd, args, optional auth
-- JSONL codec:
+- JSONL codec (for commands, not telemetry):
   - decode per line
   - encode per result
 - Strict validation: reject unknown fields and malformed payloads
+- `alfredctl` CLI shipped from `@git-stunts/alfred-live`
 
 **Acceptance criteria**
 
-- node scripts/alfredctl.js can:
+- `alfredctl` can:
   - list keys
   - read config
   - write config
 
 **Scope**
 
-- JSONL only
+- JSONL only (command channel)
 
 **Out of scope**
 
 - HTTP/gRPC (future satellites)
+- Telemetry transport packages (separate track)
 
 **Test spec**
 
@@ -626,6 +631,18 @@ As an operator, I need a complete audit trail of config change attempts (even de
 ## Milestone v1.0 — Production Contract Release
 
 Goal: stop moving cheese. API stability, deterministic tests, docs complete, and "operable" story is real.
+
+---
+
+## Telemetry Transport Packages (Separate Track)
+
+Telemetry transports are **not** the same thing as the control plane command channel. Packages with `transport` in the name are telemetry sink adapters that plug into Alfred’s telemetry system.
+
+Planned examples:
+
+- `@git-stunts/alfred-transport-jsonl` — JSONL telemetry sink
+- `@git-stunts/alfred-transport-datadog` — Datadog telemetry sink
+- `@git-stunts/alfred-transport-otlp` — OTLP/OpenTelemetry telemetry sink
 
 ### v1.0.1 — API freeze + deprecation policy
 

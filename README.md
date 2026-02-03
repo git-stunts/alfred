@@ -41,6 +41,10 @@ pnpm release:publish
 
 See [ROADMAP.md](ROADMAP.md) for upcoming milestones and package ownership.
 
+## Cookbook
+
+See [COOKBOOK.md](COOKBOOK.md) for practical setup recipes.
+
 ## Preflight Checks
 
 The publish flow runs `release:preflight`, which verifies:
