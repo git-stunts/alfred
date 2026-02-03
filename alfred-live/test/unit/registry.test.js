@@ -59,7 +59,7 @@ describe('ConfigRegistry', () => {
     const prefixResult = registry.keys('bulkhead');
     expect(prefixResult.ok).toBe(true);
     if (prefixResult.ok) {
-      expect(prefixResult.data).toEqual(['bulkhead', 'bulkhead/api']);
+      expect(prefixResult.data).toEqual(['bulkhead', 'bulkhead/api', 'bulkhead/api/v2']);
     }
 
     const wildcardResult = registry.keys('bulkhead*');

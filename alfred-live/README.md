@@ -50,6 +50,10 @@ router.execute({ type: 'list_config', prefix: 'retry' });
 - `bulkhead/*` matches children only (e.g. `bulkhead/api`), not `bulkhead` itself.
 - `bulkhead*` matches `bulkhead` and `bulkhead2`.
 
+## Examples
+
+- `alfred-live/examples/control-plane/basic.js` — in-process registry + command router usage.
+
 ## Status
 
 v0.8.0 kernel implemented:
