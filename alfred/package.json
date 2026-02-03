@@ -27,7 +27,7 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "demo:web": "pnpm --dir examples/web dev",
-    "demo:web:install": "pnpm --dir examples/web install"
+    "demo:web:install": "pnpm --dir examples/web install --prod=false"
   },
   "author": "James Ross <james@flyingrobots.dev>",
   "license": "Apache-2.0",

@@ -30,7 +30,7 @@ jobs:
       - run: pnpm test
 
       # Browser tests
-      - run: pnpm --dir alfred/examples/web install
+      - run: pnpm --dir alfred/examples/web install --prod=false
       - run: pnpm --dir alfred/examples/web exec playwright install --with-deps chromium
       - run: pnpm --dir alfred/examples/web test
 
