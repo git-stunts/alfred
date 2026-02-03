@@ -19,7 +19,6 @@
       ".editorconfig",
       "eslint.config.js",
       "package-lock.json",
-      "ROADMAP.md",
       "setup-hooks.sh"
     ]
   }
