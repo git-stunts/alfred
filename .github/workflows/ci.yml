@@ -30,9 +30,9 @@ jobs:
       - run: pnpm test
 
       # Browser tests
-      - run: pnpm --filter @git-stunts/alfred demo:web:install
-      - run: npx --prefix alfred/examples/web playwright install --with-deps chromium
-      - run: pnpm --filter @git-stunts/alfred test:browser
+      - run: pnpm --dir alfred/examples/web install
+      - run: pnpm --dir alfred/examples/web exec playwright install --with-deps chromium
+      - run: pnpm --dir alfred/examples/web test
 
       # Cloudflare Workers tests
       - run: docker build -f alfred/examples/cloudflare-worker/Dockerfile -t alfred-cf-test alfred
