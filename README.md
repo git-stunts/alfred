@@ -30,7 +30,7 @@ Alfred is a **policy engine** for async resilience: composable, observable, test
 ## Versioning Policy
 
 - **All packages use the same version** (for example, `0.8.0`).
-- *A release bumps every package even if only one changed.*
+- _A release bumps every package even if only one changed._
 - The goal is zero version-mismatch ambiguity across the ecosystem.
 
 ## Release Flow

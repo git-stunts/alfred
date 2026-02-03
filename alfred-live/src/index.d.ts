@@ -14,6 +14,7 @@ export const ErrorCode: {
   readonly ALREADY_REGISTERED: 'ALREADY_REGISTERED';
   readonly INVALID_COMMAND: 'INVALID_COMMAND';
   readonly INVALID_CODEC: 'INVALID_CODEC';
+  readonly INVALID_ADAPTIVE: 'INVALID_ADAPTIVE';
   readonly INTERNAL_ERROR: 'INTERNAL_ERROR';
 };
 
@@ -54,6 +55,10 @@ export class InvalidCommandError extends AlfredLiveError {
 }
 
 export class InvalidCodecError extends AlfredLiveError {
+  constructor(message?: string, details?: unknown);
+}
+
+export class InvalidAdaptiveError extends AlfredLiveError {
   constructor(message?: string, details?: unknown);
 }
 

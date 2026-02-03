@@ -2,6 +2,7 @@ import {
   AlreadyRegisteredError,
   InvalidCodecError,
   InvalidPathError,
+  InvalidAdaptiveError,
   NotFoundError,
   ValidationError,
   errorResult,
@@ -94,22 +95,22 @@ function validateCodec(codec) {
 
 function validateAdaptive(adaptive) {
   if (!adaptive || typeof adaptive !== 'object') {
-    return new InvalidCodecError('Adaptive must be an object.');
+    return new InvalidAdaptiveError('Adaptive must be an object.');
   }
   if (typeof adaptive.get !== 'function') {
-    return new InvalidCodecError('Adaptive.get must be a function.');
+    return new InvalidAdaptiveError('Adaptive.get must be a function.');
   }
   if (typeof adaptive.set !== 'function') {
-    return new InvalidCodecError('Adaptive.set must be a function.');
+    return new InvalidAdaptiveError('Adaptive.set must be a function.');
   }
   if (typeof adaptive.update !== 'function') {
-    return new InvalidCodecError('Adaptive.update must be a function.');
+    return new InvalidAdaptiveError('Adaptive.update must be a function.');
   }
   if (typeof adaptive.version !== 'number') {
-    return new InvalidCodecError('Adaptive.version must be a number.');
+    return new InvalidAdaptiveError('Adaptive.version must be a number.');
   }
   if (typeof adaptive.updatedAt !== 'number') {
-    return new InvalidCodecError('Adaptive.updatedAt must be a number.');
+    return new InvalidAdaptiveError('Adaptive.updatedAt must be a number.');
   }
   return null;
 }

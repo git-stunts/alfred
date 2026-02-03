@@ -53,10 +53,20 @@ function getExportsMap(exportsField) {
 
   if (!exportsField) return map;
 
-  if (typeof exportsField === 'string' || Array.isArray(exportsField)) {
+  if (typeof exportsField === 'string') {
     map.set('.', {
       defaultTarget: pickDefaultTarget(exportsField),
       allTargets: new Set([exportsField].filter(Boolean)),
+    });
+    return map;
+  }
+
+  if (Array.isArray(exportsField)) {
+    const targets = new Set();
+    collectStringTargets(exportsField, targets);
+    map.set('.', {
+      defaultTarget: pickDefaultTarget(exportsField),
+      allTargets: targets,
     });
     return map;
   }

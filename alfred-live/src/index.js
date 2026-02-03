@@ -21,4 +21,5 @@ export {
   AlreadyRegisteredError,
   InvalidCommandError,
   InvalidCodecError,
+  InvalidAdaptiveError,
 } from './errors.js';

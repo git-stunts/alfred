@@ -69,7 +69,9 @@ for (const dir of packageDirs) {
     jsrJson.version = nextVersion;
     writeJson(jsrPath, jsrJson);
   } catch (err) {
-    // ignore missing jsr.json
+    if (err?.code !== 'ENOENT') {
+      throw err;
+    }
   }
 }
 

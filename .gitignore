@@ -3,6 +3,5 @@ dist/
 coverage/
 test-results/
 playwright-report/
-alfred/examples/web/test-results/
 *.log
 .DS_Store

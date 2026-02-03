@@ -5,6 +5,7 @@ export const ErrorCode = Object.freeze({
   ALREADY_REGISTERED: 'ALREADY_REGISTERED',
   INVALID_COMMAND: 'INVALID_COMMAND',
   INVALID_CODEC: 'INVALID_CODEC',
+  INVALID_ADAPTIVE: 'INVALID_ADAPTIVE',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 });
 
@@ -50,6 +51,12 @@ export class InvalidCommandError extends AlfredLiveError {
 export class InvalidCodecError extends AlfredLiveError {
   constructor(message = 'Invalid codec.', details) {
     super(ErrorCode.INVALID_CODEC, message, details);
+  }
+}
+
+export class InvalidAdaptiveError extends AlfredLiveError {
+  constructor(message = 'Invalid adaptive.', details) {
+    super(ErrorCode.INVALID_ADAPTIVE, message, details);
   }
 }
 

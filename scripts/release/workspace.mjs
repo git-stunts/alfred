@@ -41,6 +41,11 @@ export function getWorkspacePackageDirs() {
   const matched = new Set();
 
   for (const pattern of patterns) {
+    if (pattern.includes('/')) {
+      throw new Error(
+        `Nested patterns not supported; use top-level patterns only (found "${pattern}").`
+      );
+    }
     if (!pattern.includes('*')) {
       matched.add(pattern);
       continue;

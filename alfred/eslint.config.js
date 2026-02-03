@@ -59,7 +59,7 @@ export default [
   },
   // Relaxed rules for test files
   {
-    files: ['test/**/*.js', 'test/**/*.test.js'],
+    files: ['test/**/*.js'],
     languageOptions: {
       globals: {
         describe: 'readonly',

@@ -85,7 +85,13 @@ import { Adaptive, ConfigRegistry, CommandRouter } from '@git-stunts/alfred-live
 const bulkheadLimit = new Adaptive(10);
 const registry = new ConfigRegistry();
 registry.register('bulkhead/limit', bulkheadLimit, {
-  parse: (value) => Number(value),
+  parse: (value) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      throw new Error('bulkhead/limit must be a number');
+    }
+    return parsed;
+  },
   format: (value) => value.toString(),
 });
 
