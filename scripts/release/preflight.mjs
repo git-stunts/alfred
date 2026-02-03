@@ -37,6 +37,9 @@ function isPathIncluded(files, targetPath) {
 
   return files.some((entry) => {
     const normalizedEntry = normalizePath(entry);
+    if (/[*?[\]]/.test(normalizedEntry)) {
+      return true;
+    }
     if (normalizedEntry === normalizedTarget) return true;
 
     const isDirectory = normalizedEntry.endsWith('/') || !path.basename(normalizedEntry).includes('.');
@@ -48,30 +51,50 @@ function isPathIncluded(files, targetPath) {
   });
 }
 
+function normalizeConditionalRoot(exportsField) {
+  if (!exportsField || typeof exportsField !== 'object' || Array.isArray(exportsField)) {
+    return exportsField;
+  }
+
+  const keys = Object.keys(exportsField);
+  if (keys.length === 0) {
+    return exportsField;
+  }
+
+  const hasSubpath = keys.some((key) => key.startsWith('.'));
+  if (hasSubpath) {
+    return exportsField;
+  }
+
+  return { '.': exportsField };
+}
+
 function getExportsMap(exportsField) {
   const map = new Map();
 
-  if (!exportsField) return map;
+  const normalizedExports = normalizeConditionalRoot(exportsField);
 
-  if (typeof exportsField === 'string') {
+  if (!normalizedExports) return map;
+
+  if (typeof normalizedExports === 'string') {
     map.set('.', {
-      defaultTarget: pickDefaultTarget(exportsField),
-      allTargets: new Set([exportsField].filter(Boolean)),
+      defaultTarget: pickDefaultTarget(normalizedExports),
+      allTargets: new Set([normalizedExports].filter(Boolean)),
     });
     return map;
   }
 
-  if (Array.isArray(exportsField)) {
+  if (Array.isArray(normalizedExports)) {
     const targets = new Set();
-    collectStringTargets(exportsField, targets);
+    collectStringTargets(normalizedExports, targets);
     map.set('.', {
-      defaultTarget: pickDefaultTarget(exportsField),
+      defaultTarget: pickDefaultTarget(normalizedExports),
       allTargets: targets,
     });
     return map;
   }
 
-  for (const [key, value] of Object.entries(exportsField)) {
+  for (const [key, value] of Object.entries(normalizedExports)) {
     const targets = new Set();
     collectStringTargets(value, targets);
     map.set(key, {

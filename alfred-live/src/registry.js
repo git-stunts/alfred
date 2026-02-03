@@ -116,8 +116,8 @@ function validateAdaptive(adaptive) {
 }
 
 function createSnapshot(path, entry) {
-  const value = entry.adaptive.get();
   try {
+    const value = entry.adaptive.get();
     const formatted = entry.format(value);
     return okResult({
       path,
@@ -231,7 +231,13 @@ export class ConfigRegistry {
       );
     }
 
-    entry.adaptive.set(parsedValue);
+    try {
+      entry.adaptive.set(parsedValue);
+    } catch (error) {
+      return errorResult(
+        new ValidationError('Failed to apply value.', { path, error: String(error) })
+      );
+    }
 
     return createSnapshot(path, entry);
   }

@@ -6,6 +6,7 @@ import { getWorkspacePackageDirs, readJson, rootPath } from './workspace.mjs';
 function run(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, { stdio: 'inherit', ...options });
   if (result.status !== 0) {
+    console.error(`Command failed: ${cmd} ${args.join(' ')}`);
     process.exit(result.status ?? 1);
   }
 }

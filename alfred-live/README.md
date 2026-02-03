@@ -46,9 +46,9 @@ router.execute({ type: 'list_config', prefix: 'retry' });
 
 - Paths are relative, slash-delimited (`bulkhead/api`).
 - Prefix matching uses path semantics.
-- Prefix `bulkhead` matches `bulkhead` and `bulkhead/api`.
-- Pattern `bulkhead/*` matches children only (e.g. `bulkhead/api`), not `bulkhead` itself.
-- Wildcard `bulkhead*` matches `bulkhead` and `bulkhead2`.
+- Exact prefix: `bulkhead` matches `bulkhead` and `bulkhead/api`.
+- Child-only wildcard: `bulkhead/*` matches children only (e.g. `bulkhead/api`), not `bulkhead` itself.
+- Glob-style prefix: `bulkhead*` matches `bulkhead` and `bulkhead2`.
 
 ## Examples
 
