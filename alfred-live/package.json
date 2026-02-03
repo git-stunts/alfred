@@ -12,6 +12,9 @@
       "default": "./src/index.js"
     }
   },
+  "dependencies": {
+    "@git-stunts/alfred": "workspace:*"
+  },
   "engines": {
     "node": ">=20.0.0"
   },

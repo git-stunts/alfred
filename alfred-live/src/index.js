@@ -9,4 +9,16 @@
 
 // @ts-self-types="./index.d.ts"
 
-export {};
+export { Adaptive } from './adaptive.js';
+export { ConfigRegistry } from './registry.js';
+export { CommandRouter } from './router.js';
+export {
+  ErrorCode,
+  AlfredLiveError,
+  InvalidPathError,
+  NotFoundError,
+  ValidationError,
+  AlreadyRegisteredError,
+  InvalidCommandError,
+  InvalidCodecError,
+} from './errors.js';
