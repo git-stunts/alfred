@@ -73,6 +73,7 @@ The publish flow runs `release:preflight`, which verifies:
 - `jsr.json` versions match `package.json`.
 - `package.json` exports exist on disk and are included in `files`.
 - `jsr.json` exports match `package.json` exports.
+- `pnpm install --frozen-lockfile` succeeds (lockfile matches specs).
 - `npm pack --dry-run` succeeds for each published package.
 
 ## Repo Layout
