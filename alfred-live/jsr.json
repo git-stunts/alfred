@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/alfred-live",
-  "version": "0.8.2",
+  "version": "0.9.0",
   "description": "In-memory control plane for Alfred: adaptive values, config registry, command router.",
   "license": "Apache-2.0",
   "exports": {

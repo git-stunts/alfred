@@ -29,7 +29,7 @@ Alfred becomes a **runtime-controlled resilience layer**:
 ## Packages
 
 - `@git-stunts/alfred` — Core policies + composition + telemetry + TestClock.
-- `@git-stunts/alfred-live` — Control plane primitives + live policy wrappers + `alfredctl` CLI.
+- `@git-stunts/alfred-live` — Control plane primitives + live policy plans + `alfredctl` CLI.
 - `@git-stunts/alfred-transport-jsonl` — Telemetry sink adapter (JSONL logger, planned).
 
 ## Version Milestones
@@ -37,8 +37,8 @@ Alfred becomes a **runtime-controlled resilience layer**:
 - [x] v0.5 — Correctness & Coherence (`@git-stunts/alfred`)
 - [x] v0.6 — Typed Knobs & Stable Semantics (`@git-stunts/alfred`)
 - [x] v0.7 — Rate Limiting (Throughput) Policy (`@git-stunts/alfred`)
-- [ ] v0.8 — Control Plane Core (In-Memory) (`@git-stunts/alfred-live`)
-- [ ] v0.9 — Live Policies by ID (No Redeploy) (`@git-stunts/alfred-live`)
+- [x] v0.8 — Control Plane Core (In-Memory) (`@git-stunts/alfred-live`)
+- [x] v0.9 — Live Policies by ID (No Redeploy) (`@git-stunts/alfred-live`)
 - [ ] v0.10 — Control Plane Command Channel + Audit Ordering (`@git-stunts/alfred-live`)
 - [ ] v1.0 — Production Contract Release (all packages)
 
@@ -47,7 +47,7 @@ Alfred becomes a **runtime-controlled resilience layer**:
 The control plane is intentionally layered. Interfaces appear in this order:
 
 1. **In-process API** (v0.8): `ConfigRegistry` + `CommandRouter` used directly in code.
-2. **Live policy wrappers** (v0.9): `Policy.live*` helpers that wrap core policies, still in-process.
+2. **Live policy plans** (v0.9): `LivePolicyPlan` + `ControlPlane.registerLivePolicy`, still in-process.
 3. **Command channel + CLI** (v0.10): JSONL envelope + `alfredctl` for external control.
 
 Telemetry transport packages (e.g. `@git-stunts/alfred-transport-*`) are a separate track and do not carry control plane commands.
@@ -439,7 +439,7 @@ As a tool author, I want a stable command API that can be transported over any p
 
 Goal: Policies become operable: "liveBulkhead('bulkhead.api')" etc.
 
-### v0.9.1 — Add Policy.live\* constructors (retry/bulkhead/circuit/timeout)
+### v0.9.1 — Add LivePolicyPlan + ControlPlane.registerLivePolicy
 
 **Package(s)**
 `@git-stunts/alfred-live` (wraps `@git-stunts/alfred` policies)
@@ -449,14 +449,16 @@ As an operator, I want to tune a live system without redeploying, using stable I
 
 **Requirements**
 
-- Add constructors:
-  - Policy.liveRetry(id, plane, defaults?)
-  - Policy.liveBulkhead(id, plane, defaults?)
-  - Policy.liveCircuitBreaker(id, plane, defaults?)
-  - Policy.liveTimeout(id, plane, defaults?)
-- Defaults:
-  - if key missing, register defaults automatically OR require explicit plane.define (pick one; I recommend explicit)
-- Snapshot semantics:
+- Introduce `LivePolicyPlan` builders:
+  - `LivePolicyPlan.retry(binding, defaults)`
+  - `LivePolicyPlan.bulkhead(binding, defaults)`
+  - `LivePolicyPlan.circuitBreaker(binding, defaults)`
+  - `LivePolicyPlan.timeout(binding, ms, options)`
+  - `LivePolicyPlan.static(policy)` for core-only policies inside a live stack
+- Bind plans with `ControlPlane.registerLivePolicy(plan, basePath)`
+  - Creates registry entries under `<basePath>/<binding>/<field>`
+  - Returns `{ policy, bindings, paths }` in a Result envelope
+- Resolution semantics:
   - Retry/Timeout: per execute
   - Bulkhead: per admission
   - Circuit: per event

@@ -24,11 +24,20 @@ function buildRootChangelog(packages) {
     const changelogPath = path.join(pkg.dir, 'CHANGELOG.md');
     if (!fs.existsSync(changelogPath)) return null;
     const content = fs.readFileSync(changelogPath, 'utf8');
-    const stripped = stripFirstHeading(content);
+    const stripped = addPackageContext(stripFirstHeading(content), pkg.name ?? 'package');
     return [`## ${pkg.name}`, '', stripped.trim(), ''].join('\n');
   });
 
   return [...header, ...sections.filter(Boolean)].join('\n');
+}
+
+function addPackageContext(content, packageName) {
+  return content.replace(/^## \[([^\]]+)\](.*)$/gm, (match, version, rest) => {
+    if (rest.includes(`(${packageName})`)) {
+      return match;
+    }
+    return `## [${version}]${rest} (${packageName})`;
+  });
 }
 
 function writeFile(filePath, content, mode) {

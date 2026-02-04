@@ -7,6 +7,8 @@
  * @module
  */
 
+import type { Policy as CorePolicy, TelemetrySink } from '@git-stunts/alfred';
+
 /**
  * Error code catalog for control-plane failures.
  */
@@ -149,6 +151,67 @@ export interface ConfigSnapshot {
 }
 
 /**
+ * Defaults for live retry configuration.
+ */
+export interface LiveRetryDefaults {
+  retries?: number;
+  delay?: number;
+  maxDelay?: number;
+  backoff?: 'constant' | 'linear' | 'exponential';
+  jitter?: 'none' | 'full' | 'equal' | 'decorrelated';
+  shouldRetry?: (error: Error) => boolean;
+  onRetry?: (error: Error, attempt: number, delay: number) => void;
+  telemetry?: TelemetrySink;
+  clock?: any;
+  signal?: AbortSignal;
+}
+
+/**
+ * Defaults for live bulkhead configuration.
+ */
+export interface LiveBulkheadDefaults {
+  limit?: number;
+  queueLimit?: number;
+  telemetry?: TelemetrySink;
+  clock?: any;
+}
+
+/**
+ * Defaults for live circuit breaker configuration.
+ */
+export interface LiveCircuitBreakerDefaults {
+  threshold?: number;
+  duration?: number;
+  successThreshold?: number;
+  shouldTrip?: (error: Error) => boolean;
+  onOpen?: () => void;
+  onClose?: () => void;
+  onHalfOpen?: () => void;
+  telemetry?: TelemetrySink;
+  clock?: any;
+}
+
+/**
+ * Defaults for live timeout configuration.
+ */
+export interface LiveTimeoutOptions {
+  onTimeout?: (elapsed: number) => void;
+  telemetry?: TelemetrySink;
+  clock?: any;
+}
+
+export interface LiveTimeoutDefaults extends LiveTimeoutOptions {
+  ms: number;
+}
+
+/**
+ * Live policy wrapper that returns Result envelopes on execution.
+ */
+export interface LivePolicy {
+  execute<T>(fn: () => Promise<T>): Promise<Result<T>>;
+}
+
+/**
  * Registry of live configuration entries.
  */
 export class ConfigRegistry {
@@ -200,4 +263,77 @@ export class CommandRouter {
    * Execute a command and return a Result envelope.
    */
   execute(command: Command): CommandResult;
+}
+
+/**
+ * Supported live policy kinds.
+ */
+export type LivePolicyKind = 'retry' | 'bulkhead' | 'circuitBreaker' | 'timeout';
+
+/**
+ * Resolved binding for a live policy entry.
+ */
+export interface LivePolicyBinding {
+  binding: string;
+  kind: LivePolicyKind;
+  path: string;
+}
+
+/**
+ * Declarative builder for live policy stacks.
+ */
+export class LivePolicyPlan {
+  /**
+   * Define a live retry policy binding.
+   */
+  static retry(binding: string, defaults?: LiveRetryDefaults): LivePolicyPlan;
+  /**
+   * Define a live bulkhead policy binding.
+   */
+  static bulkhead(binding: string, defaults?: LiveBulkheadDefaults): LivePolicyPlan;
+  /**
+   * Define a live circuit breaker policy binding.
+   */
+  static circuitBreaker(binding: string, defaults?: LiveCircuitBreakerDefaults): LivePolicyPlan;
+  /**
+   * Define a live timeout policy binding.
+   */
+  static timeout(binding: string, ms: number, options?: LiveTimeoutOptions): LivePolicyPlan;
+  static timeout(binding: string, defaults: LiveTimeoutDefaults): LivePolicyPlan;
+  /**
+   * Wrap a static policy inside a live plan.
+   */
+  static static(
+    policy: CorePolicy | { execute(fn: () => Promise<unknown>): Promise<unknown> }
+  ): LivePolicyPlan;
+  /**
+   * Wrap another plan inside this one.
+   */
+  wrap(otherPlan: LivePolicyPlan): LivePolicyPlan;
+  /**
+   * Raw plan nodes.
+   */
+  readonly nodes: Array<{
+    kind: LivePolicyKind | 'static';
+    binding?: string;
+    defaults?: Record<string, unknown>;
+    policy?: CorePolicy | { execute(fn: () => Promise<unknown>): Promise<unknown> };
+  }>;
+}
+
+/**
+ * Control plane orchestrator for live policy bindings.
+ */
+export class ControlPlane {
+  constructor(registry: ConfigRegistry);
+  /**
+   * Bind a live policy plan to a base path and return a live policy wrapper.
+   *
+   * The returned policy resolves live config on each execution and returns
+   * Result envelopes. Registry read failures surface as Result errors.
+   */
+  registerLivePolicy(
+    plan: LivePolicyPlan,
+    basePath: string
+  ): Result<{ policy: LivePolicy; bindings: LivePolicyBinding[]; paths: string[] }>;
 }

@@ -12,6 +12,7 @@
 export { Adaptive } from './adaptive.js';
 export { ConfigRegistry } from './registry.js';
 export { CommandRouter } from './router.js';
+export { LivePolicyPlan, ControlPlane } from './policy.js';
 export {
   ErrorCode,
   AlfredLiveError,

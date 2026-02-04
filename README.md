@@ -25,7 +25,7 @@ Alfred is a **policy engine** for async resilience: composable, observable, test
 ## Packages
 
 - `@git-stunts/alfred` — Resilience policies and composition utilities for async operations.
-- `@git-stunts/alfred-live` — In-memory control plane primitives (adaptive values, config registry, command router).
+- `@git-stunts/alfred-live` — In-memory control plane primitives plus live policy plans.
 
 ## Versioning Policy
 
@@ -73,7 +73,7 @@ The publish flow runs `release:preflight`, which verifies:
 - `jsr.json` versions match `package.json`.
 - `package.json` exports exist on disk and are included in `files`.
 - `jsr.json` exports match `package.json` exports.
-- `pnpm -r pack --dry-run` succeeds.
+- `npm pack --dry-run` succeeds for each published package.
 
 ## Repo Layout
 
