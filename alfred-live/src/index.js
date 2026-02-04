@@ -13,6 +13,13 @@ export { Adaptive } from './adaptive.js';
 export { ConfigRegistry } from './registry.js';
 export { CommandRouter } from './router.js';
 export {
+  Policy,
+  defineLiveRetry,
+  defineLiveBulkhead,
+  defineLiveCircuitBreaker,
+  defineLiveTimeout,
+} from './policy.js';
+export {
   ErrorCode,
   AlfredLiveError,
   InvalidPathError,

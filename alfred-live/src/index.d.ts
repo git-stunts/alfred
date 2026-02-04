@@ -7,6 +7,8 @@
  * @module
  */
 
+import type { Policy as CorePolicy, TelemetrySink } from '@git-stunts/alfred';
+
 /**
  * Error code catalog for control-plane failures.
  */
@@ -149,6 +151,57 @@ export interface ConfigSnapshot {
 }
 
 /**
+ * Defaults for live retry configuration.
+ */
+export interface LiveRetryDefaults {
+  retries?: number;
+  delay?: number;
+  maxDelay?: number;
+  backoff?: 'constant' | 'linear' | 'exponential';
+  jitter?: 'none' | 'full' | 'equal' | 'decorrelated';
+  shouldRetry?: (error: Error) => boolean;
+  onRetry?: (error: Error, attempt: number, delay: number) => void;
+  telemetry?: TelemetrySink;
+  clock?: any;
+  signal?: AbortSignal;
+}
+
+/**
+ * Defaults for live bulkhead configuration.
+ */
+export interface LiveBulkheadDefaults {
+  limit?: number;
+  queueLimit?: number;
+  telemetry?: TelemetrySink;
+  clock?: any;
+}
+
+/**
+ * Defaults for live circuit breaker configuration.
+ */
+export interface LiveCircuitBreakerDefaults {
+  threshold?: number;
+  duration?: number;
+  successThreshold?: number;
+  shouldTrip?: (error: Error) => boolean;
+  onOpen?: () => void;
+  onClose?: () => void;
+  onHalfOpen?: () => void;
+  telemetry?: TelemetrySink;
+  clock?: any;
+}
+
+/**
+ * Defaults for live timeout configuration.
+ */
+export interface LiveTimeoutDefaults {
+  ms?: number;
+  onTimeout?: (elapsed: number) => void;
+  telemetry?: TelemetrySink;
+  clock?: any;
+}
+
+/**
  * Registry of live configuration entries.
  */
 export class ConfigRegistry {
@@ -200,4 +253,58 @@ export class CommandRouter {
    * Execute a command and return a Result envelope.
    */
   execute(command: Command): CommandResult;
+}
+
+/**
+ * Register live retry defaults in the registry.
+ */
+export function defineLiveRetry(
+  registry: ConfigRegistry,
+  id: string,
+  defaults?: LiveRetryDefaults
+): Result<{ id: string; keys: string[] }>;
+
+/**
+ * Register live bulkhead defaults in the registry.
+ */
+export function defineLiveBulkhead(
+  registry: ConfigRegistry,
+  id: string,
+  defaults?: LiveBulkheadDefaults
+): Result<{ id: string; keys: string[] }>;
+
+/**
+ * Register live circuit breaker defaults in the registry.
+ */
+export function defineLiveCircuitBreaker(
+  registry: ConfigRegistry,
+  id: string,
+  defaults?: LiveCircuitBreakerDefaults
+): Result<{ id: string; keys: string[] }>;
+
+/**
+ * Register live timeout defaults in the registry.
+ */
+export function defineLiveTimeout(
+  registry: ConfigRegistry,
+  id: string,
+  defaults?: LiveTimeoutDefaults
+): Result<{ id: string; keys: string[] }>;
+
+/**
+ * Policy class with live-control helpers.
+ */
+export class Policy extends CorePolicy {
+  static liveRetry(id: string, registry: ConfigRegistry, defaults?: LiveRetryDefaults): Policy;
+  static liveBulkhead(
+    id: string,
+    registry: ConfigRegistry,
+    defaults?: LiveBulkheadDefaults
+  ): Policy;
+  static liveCircuitBreaker(
+    id: string,
+    registry: ConfigRegistry,
+    defaults?: LiveCircuitBreakerDefaults
+  ): Policy;
+  static liveTimeout(id: string, registry: ConfigRegistry, defaults?: LiveTimeoutDefaults): Policy;
 }
