@@ -12,6 +12,15 @@
 export { Adaptive } from './adaptive.js';
 export { ConfigRegistry } from './registry.js';
 export { CommandRouter } from './router.js';
+export {
+  buildResultEnvelope,
+  decodeCommandEnvelope,
+  encodeCommandEnvelope,
+  encodeResultEnvelope,
+  executeCommandEnvelope,
+  executeCommandLine,
+  validateCommandEnvelope,
+} from './command-envelope.js';
 export { LivePolicyPlan, ControlPlane } from './policy.js';
 export {
   ErrorCode,

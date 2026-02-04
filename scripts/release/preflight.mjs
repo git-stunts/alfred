@@ -122,6 +122,20 @@ function reportErrors(errors) {
   process.exit(1);
 }
 
+const installResult = spawnSync('pnpm', ['install', '--frozen-lockfile'], {
+  stdio: 'inherit',
+});
+if (installResult.error) {
+  console.error(
+    '\nPreflight failed to run pnpm install:',
+    installResult.error?.message ?? installResult.error
+  );
+  process.exit(installResult.status ?? 1);
+}
+if (installResult.status !== 0) {
+  process.exit(installResult.status ?? 1);
+}
+
 const packageDirs = getWorkspacePackageDirs();
 const errors = [];
 

@@ -255,6 +255,71 @@ export type Command = ReadConfigCommand | WriteConfigCommand | ListConfigCommand
 export type CommandResult = Result<ConfigSnapshot> | Result<string[]>;
 
 /**
+ * JSONL command envelope.
+ */
+export type CommandEnvelope =
+  | { id: string; cmd: 'read_config'; args: { path: string }; auth?: string }
+  | {
+      id: string;
+      cmd: 'write_config';
+      args: { path: string; value: string };
+      auth?: string;
+    }
+  | { id: string; cmd: 'list_config'; args: { prefix?: string }; auth?: string };
+
+/**
+ * JSONL result envelope.
+ */
+export type ResultEnvelope =
+  | { id: string; ok: true; data: ConfigSnapshot | string[] }
+  | { id: string; ok: false; error: ErrorShape };
+
+/**
+ * Validate a command envelope.
+ */
+export function validateCommandEnvelope(envelope: unknown): Result<CommandEnvelope>;
+
+/**
+ * Decode a JSONL command envelope.
+ */
+export function decodeCommandEnvelope(line: string): Result<CommandEnvelope>;
+
+/**
+ * Encode a command envelope as JSONL.
+ */
+export function encodeCommandEnvelope(envelope: CommandEnvelope): Result<string>;
+
+/**
+ * Build a result envelope.
+ */
+export function buildResultEnvelope(
+  id: string,
+  result: Result<ConfigSnapshot | string[]>
+): ResultEnvelope;
+
+/**
+ * Encode a result envelope as JSONL.
+ */
+export function encodeResultEnvelope(envelope: ResultEnvelope): Result<string>;
+
+/**
+ * Execute a command envelope using a router.
+ */
+export function executeCommandEnvelope(
+  router: CommandRouter,
+  envelope: CommandEnvelope
+): ResultEnvelope;
+
+/**
+ * Decode and execute a JSONL command line.
+ */
+export function executeCommandLine(
+  router: CommandRouter,
+  line: string,
+  options?: { fallbackId?: string }
+): Result<string>;
+
+/**
  * Executes control-plane commands against a ConfigRegistry.
  */
 export class CommandRouter {
