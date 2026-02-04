@@ -277,13 +277,19 @@ function ensureEntries({ registry, bindingPath, fields, defaults }) {
 function readValue(registry, path) {
   const result = registry.read(path);
   if (!result.ok) {
-    throw new Error(`Live config read failed for "${path}": ${result.error.message}`);
+    return result;
   }
-  return result.data.value;
+  return okResult(result.data.value);
 }
 
 function createLiveResolver(registry, path) {
-  return () => readValue(registry, path);
+  return () => {
+    const result = readValue(registry, path);
+    if (!result.ok) {
+      throw new AlfredLiveError(result.error.code, result.error.message, result.error.details);
+    }
+    return result.data;
+  };
 }
 
 function createLiveOptions(registry, bindingPath, fields) {
@@ -451,6 +457,27 @@ function buildPolicyStack(nodes, registry, basePath) {
   return policy;
 }
 
+function wrapPolicyWithResult(policy, basePath) {
+  return {
+    execute: async (fn) => {
+      try {
+        const data = await policy.execute(fn);
+        return okResult(data);
+      } catch (error) {
+        if (error instanceof AlfredLiveError) {
+          return errorResult(error);
+        }
+        return errorResult(
+          new AlfredLiveError(ErrorCode.INTERNAL_ERROR, 'Live policy execution failed.', {
+            path: basePath,
+            error: String(error),
+          })
+        );
+      }
+    },
+  };
+}
+
 /**
  * Declarative builder for live policy stacks.
  *
@@ -481,7 +508,7 @@ export class LivePolicyPlan {
    * @param {object} defaults
    * @returns {LivePolicyPlan}
    */
-  static bulkhead(binding, defaults) {
+  static bulkhead(binding, defaults = {}) {
     return new LivePolicyPlan([{ kind: 'bulkhead', binding, defaults }]);
   }
 
@@ -491,7 +518,7 @@ export class LivePolicyPlan {
    * @param {object} defaults
    * @returns {LivePolicyPlan}
    */
-  static circuitBreaker(binding, defaults) {
+  static circuitBreaker(binding, defaults = {}) {
     return new LivePolicyPlan([{ kind: 'circuitBreaker', binding, defaults }]);
   }
 
@@ -561,9 +588,14 @@ export class ControlPlane {
 
   /**
    * Bind a live policy plan to a base path.
+   *
+   * The returned policy resolves live config at runtime. If a registry read
+   * fails during execution, the policy returns a Result envelope with the
+   * registry error code/message instead of throwing.
+   *
    * @param {LivePolicyPlan} plan
    * @param {string} basePath
-   * @returns {{ ok: true, data: { policy: CorePolicy, bindings: Array<{ binding: string, kind: string, path: string }>, paths: string[] } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+   * @returns {{ ok: true, data: { policy: { execute(fn: () => Promise<unknown>): Promise<{ ok: true, data: unknown } | { ok: false, error: { code: string, message: string, details?: unknown } }> }, bindings: Array<{ binding: string, kind: string, path: string }>, paths: string[] } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
    */
   registerLivePolicy(plan, basePath) {
     const planResult = validatePlan(plan);
@@ -598,9 +630,10 @@ export class ControlPlane {
       );
     }
     const { bindings } = bindingsResult.data;
+    const livePolicy = wrapPolicyWithResult(policy, normalizedPath);
 
     return okResult({
-      policy,
+      policy: livePolicy,
       bindings,
       paths: bindings.map((binding) => binding.path),
     });

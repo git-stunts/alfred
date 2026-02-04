@@ -45,7 +45,10 @@ describe('ControlPlane.registerLivePolicy', () => {
     expect(thirdStarted).toBe(true);
 
     gate3.resolve();
-    await Promise.all([p1, p2, p3]);
+    const results = await Promise.all([p1, p2, p3]);
+    for (const result of results) {
+      expect(result.ok).toBe(true);
+    }
   });
 
   it('uses latest retry config per execute', async () => {
@@ -70,13 +73,15 @@ describe('ControlPlane.registerLivePolicy', () => {
       throw new Error('fail');
     };
 
-    await expect(policy.execute(fail)).rejects.toThrow('fail');
+    const firstResult = await policy.execute(fail);
+    expect(firstResult.ok).toBe(false);
     expect(attempts).toBe(2);
 
     registry.write('service/api/retry/retries', '3');
     attempts = 0;
 
-    await expect(policy.execute(fail)).rejects.toThrow('fail');
+    const secondResult = await policy.execute(fail);
+    expect(secondResult.ok).toBe(false);
     expect(attempts).toBe(4);
   });
 
@@ -90,6 +95,33 @@ describe('ControlPlane.registerLivePolicy', () => {
     expect(result.ok).toBe(false);
     if (!result.ok) {
       expect(result.error.code).toBe(ErrorCode.INTERNAL_ERROR);
+    }
+  });
+
+  it('returns a Result when registry reads fail during execution', async () => {
+    const registry = {
+      read: () => ({
+        ok: false,
+        error: {
+          code: ErrorCode.NOT_FOUND,
+          message: 'Path not found.',
+          details: { path: 'service/api/bulkhead/limit' },
+        },
+      }),
+      register: (path) => ({ ok: true, data: { path } }),
+    };
+    const controlPlane = new ControlPlane(registry);
+    const livePlan = LivePolicyPlan.bulkhead('bulkhead', { limit: 1, queueLimit: 0 });
+
+    const result = controlPlane.registerLivePolicy(livePlan, 'service/api');
+    if (!result.ok) {
+      throw new Error(result.error.message);
+    }
+
+    const executeResult = await result.data.policy.execute(async () => 'ok');
+    expect(executeResult.ok).toBe(false);
+    if (!executeResult.ok) {
+      expect(executeResult.error.code).toBe(ErrorCode.NOT_FOUND);
     }
   });
 });

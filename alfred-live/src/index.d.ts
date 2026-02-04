@@ -205,6 +205,13 @@ export interface LiveTimeoutDefaults extends LiveTimeoutOptions {
 }
 
 /**
+ * Live policy wrapper that returns Result envelopes on execution.
+ */
+export interface LivePolicy {
+  execute<T>(fn: () => Promise<T>): Promise<Result<T>>;
+}
+
+/**
  * Registry of live configuration entries.
  */
 export class ConfigRegistry {
@@ -283,11 +290,11 @@ export class LivePolicyPlan {
   /**
    * Define a live bulkhead policy binding.
    */
-  static bulkhead(binding: string, defaults: LiveBulkheadDefaults): LivePolicyPlan;
+  static bulkhead(binding: string, defaults?: LiveBulkheadDefaults): LivePolicyPlan;
   /**
    * Define a live circuit breaker policy binding.
    */
-  static circuitBreaker(binding: string, defaults: LiveCircuitBreakerDefaults): LivePolicyPlan;
+  static circuitBreaker(binding: string, defaults?: LiveCircuitBreakerDefaults): LivePolicyPlan;
   /**
    * Define a live timeout policy binding.
    */
@@ -319,8 +326,14 @@ export class LivePolicyPlan {
  */
 export class ControlPlane {
   constructor(registry: ConfigRegistry);
+  /**
+   * Bind a live policy plan to a base path and return a live policy wrapper.
+   *
+   * The returned policy resolves live config on each execution and returns
+   * Result envelopes. Registry read failures surface as Result errors.
+   */
   registerLivePolicy(
     plan: LivePolicyPlan,
     basePath: string
-  ): Result<{ policy: CorePolicy; bindings: LivePolicyBinding[]; paths: string[] }>;
+  ): Result<{ policy: LivePolicy; bindings: LivePolicyBinding[]; paths: string[] }>;
 }

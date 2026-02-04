@@ -164,6 +164,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ControlPlane.registerLivePolicy` for binding live stacks to registry paths.
 - Live policy examples and documentation.
 
+### Changed
+
+- Live policy execution now returns Result envelopes (registry-read failures surface as Result errors).
+
 ## [0.8.2] - 2026-02-04 (@git-stunts/alfred-live)
 
 ### Added

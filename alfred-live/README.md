@@ -103,7 +103,8 @@ if (!result.ok) throw new Error(result.error.message);
 
 const { policy } = result.data;
 
-await policy.execute(() => fetch('https://api.example.com'));
+const execution = await policy.execute(() => fetch('https://api.example.com'));
+if (!execution.ok) throw new Error(execution.error.message);
 
 // Live update, no redeploy.
 registry.write('gateway/api/retry/retries', '5');
