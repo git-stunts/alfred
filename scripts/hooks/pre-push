@@ -8,8 +8,11 @@ BASE_REF="@{u}"
 if ! git rev-parse --abbrev-ref --symbolic-full-name "${BASE_REF}" >/dev/null 2>&1; then
   BASE_REF="origin/main"
 fi
+if ! git rev-parse --verify "${BASE_REF}" >/dev/null 2>&1; then
+  BASE_REF="HEAD"
+fi
 
-CHANGED_FILES=$(git diff --name-only "${BASE_REF}"...HEAD)
+CHANGED_FILES=$(git diff --name-only "${BASE_REF}"...HEAD 2>/dev/null || echo "")
 
 if echo "${CHANGED_FILES}" | grep -E '(^|/)(package\.json|jsr\.json)$' >/dev/null 2>&1; then
   echo "Detected package metadata changes; running release preflight..."
