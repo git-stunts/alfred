@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { retry } from '../../src/policies/retry.js';
 import { TestClock } from '../../src/utils/clock.js';
 import { RetryExhaustedError } from '../../src/errors.js';
+import { flush } from '../../../test/helpers/async.js';
 
 describe('Adaptive Retry', () => {
   it('updates retries count dynamically', async () => {
@@ -16,7 +17,7 @@ describe('Adaptive Retry', () => {
     });
 
     // First attempt fails.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush(2);
     // Current retries is 1. Next attempt is 2.
     // attempt 1 failed. Is 1 >= 1+1? No. Sleep.
 
@@ -46,7 +47,7 @@ describe('Adaptive Retry', () => {
     });
 
     // Attempt 1 fails.
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await flush(2);
     await clock.advance(10);
     // Attempt 2 fails.
     // At this point, maxRetries is 1. attempt is 2. 2 >= 1+1. Should throw.

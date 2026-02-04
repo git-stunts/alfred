@@ -6,8 +6,16 @@ export function defer() {
   return { promise, resolve };
 }
 
-export function flush() {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
+export async function flush(ticks = 1) {
+  for (let i = 0; i < ticks; i++) {
+    await Promise.resolve();
+  }
+}
+
+export async function waitFor(condition, ticks = 10) {
+  for (let i = 0; i < ticks; i++) {
+    if (condition()) return;
+    await flush(1);
+  }
+  throw new Error('Condition not met within flush window.');
 }

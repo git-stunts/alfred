@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { compose, fallback, race } from '../../src/compose.js';
+import { defer, flush } from '../../../test/helpers/async.js';
 
 describe('compose', () => {
   describe('compose()', () => {
@@ -228,8 +229,12 @@ describe('compose', () => {
 
   describe('race()', () => {
     it('returns first success', async () => {
+      const gate = defer();
       const policyA = {
-        execute: () => new Promise((resolve) => setTimeout(() => resolve('slow'), 100)),
+        execute: async () => {
+          await gate.promise;
+          return 'slow';
+        },
       };
       const policyB = {
         execute: () => Promise.resolve('fast'),
@@ -240,15 +245,20 @@ describe('compose', () => {
 
       const result = await policy.execute(fn);
 
+      gate.resolve();
       expect(result).toBe('fast');
     });
 
     it('returns policyA result if it wins', async () => {
+      const gate = defer();
       const policyA = {
         execute: () => Promise.resolve('A wins'),
       };
       const policyB = {
-        execute: () => new Promise((resolve) => setTimeout(() => resolve('B'), 100)),
+        execute: async () => {
+          await gate.promise;
+          return 'B';
+        },
       };
 
       const policy = race(policyA, policyB);
@@ -256,12 +266,17 @@ describe('compose', () => {
 
       const result = await policy.execute(fn);
 
+      gate.resolve();
       expect(result).toBe('A wins');
     });
 
     it('returns policyB result if it wins', async () => {
+      const gate = defer();
       const policyA = {
-        execute: () => new Promise((resolve) => setTimeout(() => resolve('A'), 100)),
+        execute: async () => {
+          await gate.promise;
+          return 'A';
+        },
       };
       const policyB = {
         execute: () => Promise.resolve('B wins'),
@@ -272,6 +287,7 @@ describe('compose', () => {
 
       const result = await policy.execute(fn);
 
+      gate.resolve();
       expect(result).toBe('B wins');
     });
 
@@ -292,17 +308,24 @@ describe('compose', () => {
     });
 
     it('returns success even if faster one fails', async () => {
+      const gate = defer();
       const policyA = {
         execute: () => Promise.reject(new Error('fast failure')),
       };
       const policyB = {
-        execute: () => new Promise((resolve) => setTimeout(() => resolve('slow success'), 50)),
+        execute: async () => {
+          await gate.promise;
+          return 'slow success';
+        },
       };
 
       const policy = race(policyA, policyB);
       const fn = vi.fn();
 
-      const result = await policy.execute(fn);
+      const resultPromise = policy.execute(fn);
+      await flush(2);
+      gate.resolve();
+      const result = await resultPromise;
 
       expect(result).toBe('slow success');
     });
@@ -312,8 +335,7 @@ describe('compose', () => {
         execute: () => Promise.reject(new Error('A failed')),
       };
       const policyB = {
-        execute: () =>
-          new Promise((_, reject) => setTimeout(() => reject(new Error('B failed')), 50)),
+        execute: () => Promise.reject(new Error('B failed')),
       };
 
       const policy = race(policyA, policyB);
@@ -347,20 +369,20 @@ describe('compose', () => {
     });
 
     it('executes both policies concurrently', async () => {
-      const startTimes = [];
-      const startTime = Date.now();
+      const startOrder = [];
+      const gate = defer();
 
       const policyA = {
         execute: async () => {
-          startTimes.push(Date.now() - startTime);
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          startOrder.push('A');
+          await gate.promise;
           return 'A';
         },
       };
       const policyB = {
         execute: async () => {
-          startTimes.push(Date.now() - startTime);
-          await new Promise((resolve) => setTimeout(resolve, 50));
+          startOrder.push('B');
+          await gate.promise;
           return 'B';
         },
       };
@@ -368,10 +390,14 @@ describe('compose', () => {
       const policy = race(policyA, policyB);
       const fn = vi.fn();
 
-      await policy.execute(fn);
+      const resultPromise = policy.execute(fn);
 
-      // Both should start near simultaneously (within 20ms of each other)
-      expect(Math.abs(startTimes[0] - startTimes[1])).toBeLessThan(20);
+      await flush(2);
+      expect(new Set(startOrder)).toEqual(new Set(['A', 'B']));
+
+      gate.resolve();
+      const result = await resultPromise;
+      expect(['A', 'B']).toContain(result);
     });
   });
 });

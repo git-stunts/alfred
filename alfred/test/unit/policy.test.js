@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { Policy } from '../../src/policy.js';
 import { TestClock } from '../../src/utils/clock.js';
 import { RetryExhaustedError, TimeoutError } from '../../src/errors.js';
+import { flush } from '../../../test/helpers/async.js';
 
 describe('Policy (fluent API)', () => {
   describe('Policy.retry()', () => {
@@ -59,10 +60,14 @@ describe('Policy (fluent API)', () => {
     });
 
     it('throws TimeoutError when exceeded', async () => {
-      const fn = () => new Promise((resolve) => setTimeout(() => resolve('slow'), 200));
-      const policy = Policy.timeout(50);
+      const clock = new TestClock();
+      const fn = () => clock.sleep(200).then(() => 'slow');
+      const policy = Policy.timeout(50, { clock });
 
-      await expect(policy.execute(fn)).rejects.toThrow(TimeoutError);
+      const resultPromise = policy.execute(fn);
+      await clock.advance(50);
+
+      await expect(resultPromise).rejects.toThrow(TimeoutError);
     });
   });
 
@@ -132,24 +137,25 @@ describe('Policy (fluent API)', () => {
     });
 
     it('retry wraps timeout correctly', async () => {
+      const clock = new TestClock();
       const fn = vi
         .fn()
-        .mockImplementationOnce(
-          () => new Promise((resolve) => setTimeout(() => resolve('slow'), 200))
-        )
+        .mockImplementationOnce(() => clock.sleep(200).then(() => 'slow'))
         .mockResolvedValue('fast');
 
-      const clock = new TestClock();
-      const policy = Policy.retry({ retries: 2, delay: 100, clock }).wrap(Policy.timeout(50));
+      const policy = Policy.retry({ retries: 2, delay: 100, clock }).wrap(
+        Policy.timeout(50, { clock })
+      );
 
       // First attempt will timeout, then retry should succeed
       const resultPromise = policy.execute(fn);
 
       // Advance past first timeout
-      await new Promise((resolve) => setTimeout(resolve, 60));
+      await clock.advance(50);
+      await flush(2);
       // Advance clock for retry delay
       await clock.advance(100);
-      for (let i = 0; i < 20; i++) await Promise.resolve();
+      await flush(2);
 
       const result = await resultPromise;
 
@@ -223,29 +229,30 @@ describe('Policy (fluent API)', () => {
 
   describe('.race() concurrent execution', () => {
     it('runs concurrently and returns first success', async () => {
-      const slow = new Policy(
-        () => new Promise((resolve) => setTimeout(() => resolve('slow'), 100))
-      );
+      const clock = new TestClock();
+      const slow = new Policy(() => clock.sleep(100).then(() => 'slow'));
       const fast = new Policy(() => Promise.resolve('fast'));
 
       const policy = slow.race(fast);
       const fn = vi.fn();
 
       const result = await policy.execute(fn);
+      await clock.advance(100);
 
       expect(result).toBe('fast');
     });
 
     it('returns success even if other fails', async () => {
+      const clock = new TestClock();
       const failing = new Policy(() => Promise.reject(new Error('failed')));
-      const succeeding = new Policy(
-        () => new Promise((resolve) => setTimeout(() => resolve('success'), 50))
-      );
+      const succeeding = new Policy(() => clock.sleep(50).then(() => 'success'));
 
       const policy = failing.race(succeeding);
       const fn = vi.fn();
 
-      const result = await policy.execute(fn);
+      const resultPromise = policy.execute(fn);
+      await clock.advance(50);
+      const result = await resultPromise;
 
       expect(result).toBe('success');
     });
@@ -266,7 +273,9 @@ describe('Policy (fluent API)', () => {
       const clock = new TestClock();
 
       // Primary: retry with timeout that will fail
-      const primary = Policy.retry({ retries: 1, delay: 100, clock }).wrap(Policy.timeout(30));
+      const primary = Policy.retry({ retries: 1, delay: 100, clock }).wrap(
+        Policy.timeout(30, { clock })
+      );
 
       // Fallback: simple noop
       const fallbackPolicy = Policy.noop();
@@ -279,7 +288,7 @@ describe('Policy (fluent API)', () => {
         callCount++;
         if (callCount <= 2) {
           // First two calls (primary attempts) timeout
-          return new Promise((resolve) => setTimeout(() => resolve('too slow'), 200));
+          return clock.sleep(200).then(() => 'too slow');
         }
         return Promise.resolve('fallback success');
       });
@@ -287,10 +296,12 @@ describe('Policy (fluent API)', () => {
       const resultPromise = policy.execute(fn);
 
       // Wait for timeouts
-      await new Promise((resolve) => setTimeout(resolve, 40));
+      await clock.advance(30);
+      await flush(2);
       await clock.advance(100);
-      for (let i = 0; i < 20; i++) await Promise.resolve();
-      await new Promise((resolve) => setTimeout(resolve, 40));
+      await flush(2);
+      await clock.advance(30);
+      await flush(2);
 
       const result = await resultPromise;
 
@@ -365,8 +376,9 @@ describe('Policy (fluent API)', () => {
       const resultPromise = policy.execute(fn);
 
       // Fast retry should win
-      await new Promise((resolve) => setTimeout(resolve, 0));
+      await flush(2);
       await clock2.advance(50);
+      await flush(2);
 
       const result = await resultPromise;
 

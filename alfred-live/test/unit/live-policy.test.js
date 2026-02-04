@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { ConfigRegistry, ControlPlane, ErrorCode, LivePolicyPlan } from '../../src/index.js';
-import { defer, flush } from '../../../test/helpers/async.js';
+import { defer, flush, waitFor } from '../../../test/helpers/async.js';
 
 describe('ControlPlane.registerLivePolicy', () => {
   it('applies live bulkhead limits without canceling in-flight work', async () => {
@@ -33,15 +33,15 @@ describe('ControlPlane.registerLivePolicy', () => {
       await gate3.promise;
     });
 
-    await flush();
+    await flush(3);
     expect(thirdStarted).toBe(false);
 
     gate1.resolve();
-    await flush();
+    await flush(3);
     expect(thirdStarted).toBe(false);
 
     gate2.resolve();
-    await flush();
+    await waitFor(() => thirdStarted);
     expect(thirdStarted).toBe(true);
 
     gate3.resolve();

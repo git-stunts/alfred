@@ -398,7 +398,6 @@ describe('rateLimit', () => {
     it('runs without real delays', async () => {
       const clock = new TestClock();
       const limiter = rateLimit({ rate: 1, queueLimit: 10, clock });
-      const startRealTime = Date.now();
 
       // Exhaust token and queue 5 requests
       limiter.execute(() => Promise.resolve());
@@ -411,10 +410,8 @@ describe('rateLimit', () => {
       await clock.advance(5000);
 
       await Promise.all(promises);
-
-      const elapsedRealTime = Date.now() - startRealTime;
-      // Should complete in well under a second of real time (relaxed for CI)
-      expect(elapsedRealTime).toBeLessThan(500);
+      expect(clock.pendingCount).toBe(0);
+      expect(limiter.stats.queued).toBe(0);
     });
 
     it('processes queue as virtual time advances', async () => {

@@ -32,14 +32,13 @@ describe('timeout', () => {
 
   describe('timeout behavior', () => {
     it('throws TimeoutError if operation exceeds limit', async () => {
-      const fn = vi.fn().mockImplementation(
-        () =>
-          new Promise((resolve) => {
-            setTimeout(() => resolve('too late'), 200);
-          })
-      );
+      const clock = new TestClock();
+      const fn = vi.fn().mockImplementation(() => clock.sleep(200).then(() => 'too late'));
 
-      await expect(timeout(50, fn)).rejects.toThrow(TimeoutError);
+      const promise = timeout(50, fn, { clock });
+      await clock.advance(50);
+
+      await expect(promise).rejects.toThrow(TimeoutError);
     });
 
     it('TimeoutError includes timeout and elapsed values', async () => {
@@ -67,20 +66,22 @@ describe('timeout', () => {
 
     it('does not call function again after timeout', async () => {
       let callCount = 0;
-      const fn = () =>
-        new Promise((resolve) => {
-          callCount++;
-          setTimeout(() => resolve('done'), 200);
-        });
+      const clock = new TestClock();
+      const fn = () => {
+        callCount++;
+        return clock.sleep(200).then(() => 'done');
+      };
 
       try {
-        await timeout(50, fn);
+        const promise = timeout(50, fn, { clock });
+        await clock.advance(50);
+        await promise;
       } catch {
         // Expected timeout
       }
 
-      // Wait a bit to ensure no additional calls
-      await new Promise((resolve) => setTimeout(resolve, 100));
+      // Advance time to ensure pending timers resolve without extra calls
+      await clock.advance(200);
 
       expect(callCount).toBe(1);
     });
@@ -103,16 +104,17 @@ describe('timeout', () => {
 
     it('aborts signal when timeout occurs', async () => {
       let receivedSignal = null;
+      const clock = new TestClock();
 
       const fn = (signal) => {
         receivedSignal = signal;
-        return new Promise((resolve) => {
-          setTimeout(() => resolve('too late'), 200);
-        });
+        return clock.sleep(200).then(() => 'too late');
       };
 
       try {
-        await timeout(50, fn);
+        const promise = timeout(50, fn, { clock });
+        await clock.advance(50);
+        await promise;
       } catch {
         // Expected timeout
       }
@@ -131,38 +133,48 @@ describe('timeout', () => {
     });
 
     it('can be used with fetch-like operations', async () => {
+      const clock = new TestClock();
+
       // Simulate a fetch-like operation that respects AbortSignal
       const mockFetch = (signal) => {
+        let aborted = false;
         return new Promise((resolve, reject) => {
-          const timer = setTimeout(() => resolve({ data: 'response' }), 100);
-
           signal.addEventListener('abort', () => {
-            clearTimeout(timer);
+            aborted = true;
             reject(new DOMException('Aborted', 'AbortError'));
+          });
+
+          clock.sleep(100).then(() => {
+            if (aborted) return;
+            resolve({ data: 'response' });
           });
         });
       };
 
       // Should complete in time
-      const result = await timeout(500, mockFetch);
+      const successPromise = timeout(500, mockFetch, { clock });
+      await clock.advance(100);
+      const result = await successPromise;
       expect(result).toEqual({ data: 'response' });
 
       // Should timeout and abort
-      await expect(timeout(50, mockFetch)).rejects.toThrow();
+      const timeoutPromise = timeout(50, mockFetch, { clock });
+      await clock.advance(50);
+      await expect(timeoutPromise).rejects.toThrow();
     });
   });
 
   describe('onTimeout callback', () => {
     it('is called when timeout occurs', async () => {
       const onTimeout = vi.fn();
+      const clock = new TestClock();
 
-      const fn = () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve('too late'), 200);
-        });
+      const fn = () => clock.sleep(200).then(() => 'too late');
 
       try {
-        await timeout(50, fn, { onTimeout });
+        const promise = timeout(50, fn, { onTimeout, clock });
+        await clock.advance(50);
+        await promise;
       } catch {
         // Expected timeout
       }
@@ -172,21 +184,24 @@ describe('timeout', () => {
 
     it('receives elapsed time as argument', async () => {
       const onTimeout = vi.fn();
+      const clock = new TestClock();
 
       const fn = () =>
         new Promise((resolve) => {
-          setTimeout(() => resolve('too late'), 200);
+          clock.sleep(200).then(() => resolve('too late'));
         });
 
       try {
-        await timeout(50, fn, { onTimeout });
+        const promise = timeout(50, fn, { onTimeout, clock });
+        await clock.advance(50);
+        await promise;
       } catch {
         // Expected timeout
       }
 
       expect(onTimeout).toHaveBeenCalledWith(expect.any(Number));
       const elapsed = onTimeout.mock.calls[0][0];
-      expect(elapsed).toBeGreaterThanOrEqual(50);
+      expect(elapsed).toBe(50);
     });
 
     it('is not called when operation completes in time', async () => {
@@ -201,16 +216,17 @@ describe('timeout', () => {
 
     it('is called before TimeoutError is thrown', async () => {
       const callOrder = [];
+      const clock = new TestClock();
 
-      const fn = () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve('too late'), 200);
-        });
+      const fn = () => clock.sleep(200).then(() => 'too late');
 
       try {
-        await timeout(50, fn, {
+        const promise = timeout(50, fn, {
           onTimeout: () => callOrder.push('onTimeout'),
+          clock,
         });
+        await clock.advance(50);
+        await promise;
       } catch {
         callOrder.push('catch');
       }
@@ -221,12 +237,12 @@ describe('timeout', () => {
 
   describe('edge cases', () => {
     it('handles zero timeout', async () => {
-      const fn = () =>
-        new Promise((resolve) => {
-          setTimeout(() => resolve('result'), 10);
-        });
+      const clock = new TestClock();
+      const fn = () => clock.sleep(10).then(() => 'result');
 
-      await expect(timeout(0, fn)).rejects.toThrow(TimeoutError);
+      const promise = timeout(0, fn, { clock });
+      await clock.advance(0);
+      await expect(promise).rejects.toThrow(TimeoutError);
     });
 
     it('handles operation that throws synchronously', async () => {
@@ -406,27 +422,19 @@ describe('timeout', () => {
 
     it('runs deterministically with no real delays', async () => {
       const clock = new TestClock();
-      const startRealTime = Date.now();
 
-      const fn = () =>
-        new Promise((resolve) => {
-          clock.sleep(60000).then(() => resolve('done'));
-        });
+      const fn = () => clock.sleep(60000).then(() => 'done');
 
       const promise = timeout(30000, fn, { clock });
 
       // Advance 30 seconds of virtual time instantly
       await clock.advance(30000);
 
-      try {
-        await promise;
-      } catch {
-        // Expected timeout
-      }
+      await expect(promise).rejects.toThrow(TimeoutError);
+      expect(clock.pendingCount).toBeGreaterThan(0);
 
-      const elapsedRealTime = Date.now() - startRealTime;
-      // Should complete in well under a second of real time
-      expect(elapsedRealTime).toBeLessThan(100);
+      await clock.advance(30000);
+      expect(clock.pendingCount).toBe(0);
     });
 
     it('can test race between operation and timeout', async () => {

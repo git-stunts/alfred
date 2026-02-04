@@ -18,6 +18,7 @@ import { circuitBreaker } from '../../src/policies/circuit-breaker.js';
 import { hedge } from '../../src/policies/hedge.js';
 import { timeout } from '../../src/policies/timeout.js';
 import { TestClock } from '../../src/utils/clock.js';
+import { defer, flush } from '../../../test/helpers/async.js';
 
 describe('Resolution Timing', () => {
   describe('retry - resolves options per attempt', () => {
@@ -145,8 +146,10 @@ describe('Resolution Timing', () => {
       const bh = bulkhead({ limit: limitFn, queueLimit: 0 });
 
       // Start two operations
-      const op1 = bh.execute(() => new Promise((r) => setTimeout(r, 100)));
-      const op2 = bh.execute(() => new Promise((r) => setTimeout(r, 100)));
+      const gate1 = defer();
+      const gate2 = defer();
+      const op1 = bh.execute(() => gate1.promise);
+      const op2 = bh.execute(() => gate2.promise);
 
       expect(limitFn).toHaveBeenCalled();
       const callsAfterFirstTwo = limitFn.mock.calls.length;
@@ -157,6 +160,9 @@ describe('Resolution Timing', () => {
       expect(limitFn.mock.calls.length).toBeGreaterThan(callsAfterFirstTwo);
 
       // Clean up
+      gate1.resolve();
+      gate2.resolve();
+      await flush(2);
       await Promise.allSettled([op1, op2, op3Promise]);
     });
 
@@ -167,16 +173,17 @@ describe('Resolution Timing', () => {
       const bh = bulkhead({ limit: 1, queueLimit: queueLimitFn });
 
       // Fill the slot
-      const blocker = bh.execute(
-        () => new Promise((resolve) => setTimeout(() => resolve('blocker'), 50))
-      );
-      for (let i = 0; i < 10; i++) await Promise.resolve();
+      const gate = defer();
+      const blocker = bh.execute(() => gate.promise);
+      await flush(2);
 
       // This should queue (queueLimit=1)
       const queued = bh.execute(() => Promise.resolve('queued'));
 
       expect(queueLimitFn).toHaveBeenCalled();
 
+      gate.resolve();
+      await flush(2);
       await Promise.all([blocker, queued]);
     });
   });

@@ -4,6 +4,7 @@ import { circuitBreaker } from '../../src/policies/circuit-breaker.js';
 import { bulkhead } from '../../src/policies/bulkhead.js';
 import { InMemorySink } from '../../src/telemetry.js';
 import { TestClock } from '../../src/utils/clock.js';
+import { defer } from '../../../test/helpers/async.js';
 
 describe('Telemetry Integration', () => {
   describe('retry', () => {
@@ -162,10 +163,11 @@ describe('Telemetry Integration', () => {
         clock,
       });
 
-      const delay = () => new Promise((resolve) => setTimeout(resolve, 10));
+      const gate1 = defer();
+      const gate2 = defer();
 
       // 1. Execute immediately
-      const p1 = policy.execute(() => delay());
+      const p1 = policy.execute(() => gate1.promise);
 
       // execute event
       expect(sink.events[0]).toMatchObject({
@@ -175,7 +177,7 @@ describe('Telemetry Integration', () => {
       });
 
       // 2. Queue
-      const p2 = policy.execute(() => delay());
+      const p2 = policy.execute(() => gate2.promise);
 
       // queued event
       expect(sink.events[1]).toMatchObject({
@@ -194,8 +196,9 @@ describe('Telemetry Integration', () => {
         pending: 1,
       });
 
-      await p1;
-      await p2;
+      gate1.resolve();
+      gate2.resolve();
+      await Promise.all([p1, p2]);
 
       // Check subsequent events
       const eventTypes = sink.events.map((e) => e.type);
