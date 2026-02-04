@@ -29,7 +29,7 @@ Alfred becomes a **runtime-controlled resilience layer**:
 ## Packages
 
 - `@git-stunts/alfred` — Core policies + composition + telemetry + TestClock.
-- `@git-stunts/alfred-live` — Control plane primitives + live policy wrappers + `alfredctl` CLI.
+- `@git-stunts/alfred-live` — Control plane primitives + live policy plans + `alfredctl` CLI.
 - `@git-stunts/alfred-transport-jsonl` — Telemetry sink adapter (JSONL logger, planned).
 
 ## Version Milestones
@@ -47,7 +47,7 @@ Alfred becomes a **runtime-controlled resilience layer**:
 The control plane is intentionally layered. Interfaces appear in this order:
 
 1. **In-process API** (v0.8): `ConfigRegistry` + `CommandRouter` used directly in code.
-2. **Live policy wrappers** (v0.9): `Policy.live*` helpers that wrap core policies, still in-process.
+2. **Live policy plans** (v0.9): `LivePolicyPlan` + `ControlPlane.registerLivePolicy`, still in-process.
 3. **Command channel + CLI** (v0.10): JSONL envelope + `alfredctl` for external control.
 
 Telemetry transport packages (e.g. `@git-stunts/alfred-transport-*`) are a separate track and do not carry control plane commands.
@@ -439,7 +439,7 @@ As a tool author, I want a stable command API that can be transported over any p
 
 Goal: Policies become operable: "liveBulkhead('bulkhead.api')" etc.
 
-### v0.9.1 — Add Policy.live\* constructors (retry/bulkhead/circuit/timeout)
+### v0.9.1 — Add LivePolicyPlan + ControlPlane.registerLivePolicy
 
 **Package(s)**
 `@git-stunts/alfred-live` (wraps `@git-stunts/alfred` policies)
@@ -449,16 +449,16 @@ As an operator, I want to tune a live system without redeploying, using stable I
 
 **Requirements**
 
-- Add constructors:
-  - Policy.liveRetry(id, plane, defaults?)
-  - Policy.liveBulkhead(id, plane, defaults?)
-  - Policy.liveCircuitBreaker(id, plane, defaults?)
-  - Policy.liveTimeout(id, plane, defaults?)
-- Defaults:
-  - `defineLive*` registers defaults explicitly
-  - `Policy.live*` can auto-register if defaults are provided
-  - If neither is used, missing entries throw on construction
-- Snapshot semantics:
+- Introduce `LivePolicyPlan` builders:
+  - `LivePolicyPlan.retry(binding, defaults)`
+  - `LivePolicyPlan.bulkhead(binding, defaults)`
+  - `LivePolicyPlan.circuitBreaker(binding, defaults)`
+  - `LivePolicyPlan.timeout(binding, ms, options)`
+  - `LivePolicyPlan.static(policy)` for core-only policies inside a live stack
+- Bind plans with `ControlPlane.registerLivePolicy(plan, basePath)`
+  - Creates registry entries under `<basePath>/<binding>/<field>`
+  - Returns `{ policy, bindings, paths }` in a Result envelope
+- Resolution semantics:
   - Retry/Timeout: per execute
   - Bulkhead: per admission
   - Circuit: per event

@@ -1,13 +1,15 @@
-import { ConfigRegistry, Policy, defineLiveBulkhead } from '../../src/index.js';
+import { ConfigRegistry, ControlPlane, LivePolicyPlan } from '../../src/index.js';
 
 const registry = new ConfigRegistry();
+const controlPlane = new ControlPlane(registry);
+const livePlan = LivePolicyPlan.bulkhead('bulkhead', { limit: 3, queueLimit: 5 });
+const result = controlPlane.registerLivePolicy(livePlan, 'gateway/api');
 
-defineLiveBulkhead(registry, 'bulkhead/api', {
-  limit: 3,
-  queueLimit: 5,
-});
+if (!result.ok) {
+  throw new Error(result.error.message);
+}
 
-const policy = Policy.liveBulkhead('bulkhead/api', registry);
+const { policy } = result.data;
 
 async function mockCall() {
   await new Promise((resolve) => setTimeout(resolve, 50));
@@ -15,11 +17,11 @@ async function mockCall() {
 }
 
 async function run() {
-  console.log('Initial limit:', registry.read('bulkhead/api/limit'));
+  console.log('Initial limit:', registry.read('gateway/api/bulkhead/limit'));
   await Promise.all([policy.execute(mockCall), policy.execute(mockCall)]);
 
-  registry.write('bulkhead/api/limit', '1');
-  console.log('Updated limit:', registry.read('bulkhead/api/limit'));
+  registry.write('gateway/api/bulkhead/limit', '1');
+  console.log('Updated limit:', registry.read('gateway/api/bulkhead/limit'));
 
   await Promise.all([policy.execute(mockCall), policy.execute(mockCall), policy.execute(mockCall)]);
 }

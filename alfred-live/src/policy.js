@@ -1,78 +1,9 @@
 import { Policy as CorePolicy, bulkhead, circuitBreaker, retry, timeout } from '@git-stunts/alfred';
 import { Adaptive } from './adaptive.js';
-import { ErrorCode, ValidationError, errorResult, okResult } from './errors.js';
+import { ErrorCode, InvalidPathError, ValidationError, errorResult, okResult } from './errors.js';
 
 const BACKOFF_VALUES = ['constant', 'linear', 'exponential'];
 const JITTER_VALUES = ['none', 'full', 'equal', 'decorrelated'];
-
-function assertRegistry(registry) {
-  if (!registry || typeof registry.read !== 'function' || typeof registry.register !== 'function') {
-    throw new Error('ConfigRegistry instance required for live policies.');
-  }
-}
-
-function normalizeId(id) {
-  if (typeof id !== 'string') {
-    throw new Error('Live policy id must be a string.');
-  }
-  const trimmed = id.trim();
-  if (!trimmed) {
-    throw new Error('Live policy id cannot be empty.');
-  }
-  if (trimmed.startsWith('/')) {
-    throw new Error('Live policy id must be relative (no leading "/").');
-  }
-  if (trimmed.endsWith('/')) {
-    throw new Error('Live policy id cannot end with "/".');
-  }
-  if (trimmed.includes('*')) {
-    throw new Error('Live policy id cannot include "*".');
-  }
-  return trimmed;
-}
-
-function buildPath(id, key) {
-  return `${id}/${key}`;
-}
-
-function numberCodec(label) {
-  return {
-    parse: (value) => {
-      const parsed = Number(value);
-      if (!Number.isFinite(parsed)) {
-        throw new Error(`${label} must be a number`);
-      }
-      return parsed;
-    },
-    format: (value) => value.toString(),
-  };
-}
-
-function enumCodec(label, allowed) {
-  return {
-    parse: (value) => {
-      if (!allowed.includes(value)) {
-        throw new Error(`${label} must be one of: ${allowed.join(', ')}`);
-      }
-      return value;
-    },
-    format: (value) => value.toString(),
-  };
-}
-
-function validateNumberDefault(value, label) {
-  if (!Number.isFinite(value)) {
-    return new ValidationError(`${label} must be a number.`, { value });
-  }
-  return null;
-}
-
-function validateEnumDefault(value, label, allowed) {
-  if (!allowed.includes(value)) {
-    return new ValidationError(`${label} must be one of: ${allowed.join(', ')}.`, { value });
-  }
-  return null;
-}
 
 const RETRY_FIELDS = [
   {
@@ -152,6 +83,139 @@ const TIMEOUT_FIELDS = [
   },
 ];
 
+const POLICY_SPECS = {
+  retry: { fields: RETRY_FIELDS },
+  bulkhead: { fields: BULKHEAD_FIELDS },
+  circuitBreaker: { fields: CIRCUIT_FIELDS },
+  timeout: { fields: TIMEOUT_FIELDS },
+};
+
+function assertRegistry(registry) {
+  if (!registry || typeof registry.read !== 'function' || typeof registry.register !== 'function') {
+    throw new Error('ConfigRegistry instance required for live policies.');
+  }
+}
+
+function isString(value) {
+  return typeof value === 'string';
+}
+
+function isInvalidSegment(segment) {
+  if (!segment) {
+    return true;
+  }
+  if (segment === '.' || segment === '..') {
+    return true;
+  }
+  if (segment.includes('*')) {
+    return true;
+  }
+  if (segment.includes('\\')) {
+    return true;
+  }
+  return false;
+}
+
+function validatePath(path) {
+  if (!isString(path)) {
+    return new InvalidPathError('Path must be a string.', { path });
+  }
+  const trimmed = path.trim();
+  if (!trimmed) {
+    return new InvalidPathError('Path cannot be empty.', { path });
+  }
+  if (trimmed.startsWith('/')) {
+    return new InvalidPathError('Path must be relative (no leading "/").', { path });
+  }
+  if (trimmed.endsWith('/')) {
+    return new InvalidPathError('Path cannot end with "/".', { path });
+  }
+  if (trimmed.includes('\\')) {
+    return new InvalidPathError('Path must use "/" separators.', { path });
+  }
+  if (trimmed.includes('*')) {
+    return new InvalidPathError('Path cannot include "*".', { path });
+  }
+  const segments = trimmed.split('/');
+  for (const segment of segments) {
+    if (isInvalidSegment(segment)) {
+      return new InvalidPathError('Path contains invalid segment.', { path, segment });
+    }
+  }
+  return null;
+}
+
+function validateBinding(binding) {
+  if (!isString(binding)) {
+    return new ValidationError('Binding must be a string.', { binding });
+  }
+  const trimmed = binding.trim();
+  if (!trimmed) {
+    return new ValidationError('Binding cannot be empty.', { binding });
+  }
+  if (trimmed.includes('/')) {
+    return new ValidationError('Binding must be a single path segment.', { binding });
+  }
+  if (isInvalidSegment(trimmed)) {
+    return new ValidationError('Binding contains invalid characters.', { binding });
+  }
+  return null;
+}
+
+function normalizePath(path) {
+  return path.trim();
+}
+
+function normalizeBinding(binding) {
+  return binding.trim();
+}
+
+function joinPath(basePath, segment) {
+  if (!basePath) {
+    return segment;
+  }
+  return `${basePath}/${segment}`;
+}
+
+function numberCodec(label) {
+  return {
+    parse: (value) => {
+      const parsed = Number(value);
+      if (!Number.isFinite(parsed)) {
+        throw new Error(`${label} must be a number`);
+      }
+      return parsed;
+    },
+    format: (value) => value.toString(),
+  };
+}
+
+function enumCodec(label, allowed) {
+  return {
+    parse: (value) => {
+      if (!allowed.includes(value)) {
+        throw new Error(`${label} must be one of: ${allowed.join(', ')}`);
+      }
+      return value;
+    },
+    format: (value) => value.toString(),
+  };
+}
+
+function validateNumberDefault(value, label) {
+  if (!Number.isFinite(value)) {
+    return new ValidationError(`${label} must be a number.`, { value });
+  }
+  return null;
+}
+
+function validateEnumDefault(value, label, allowed) {
+  if (!allowed.includes(value)) {
+    return new ValidationError(`${label} must be one of: ${allowed.join(', ')}.`, { value });
+  }
+  return null;
+}
+
 function resolveDefaultValue(field, defaults) {
   if (defaults && Object.prototype.hasOwnProperty.call(defaults, field.key)) {
     return defaults[field.key];
@@ -163,14 +227,6 @@ function resolveDefaultValue(field, defaults) {
 }
 
 function ensureEntry(registry, path, defaultValue, codec) {
-  const existing = registry.read(path);
-  if (existing.ok) {
-    return okResult({ path });
-  }
-  if (existing.error?.code && existing.error.code !== ErrorCode.NOT_FOUND) {
-    return existing;
-  }
-
   const result = registry.register(path, new Adaptive(defaultValue), codec);
   if (result.ok) {
     return okResult({ path });
@@ -181,7 +237,7 @@ function ensureEntry(registry, path, defaultValue, codec) {
   return result;
 }
 
-function ensureEntries(registry, id, fields, defaults) {
+function ensureEntries(registry, bindingPath, fields, defaults) {
   const keys = [];
 
   for (const field of fields) {
@@ -189,7 +245,7 @@ function ensureEntries(registry, id, fields, defaults) {
     if (value === undefined) {
       if (field.required) {
         return errorResult(
-          new ValidationError(`Missing default for ${field.key}.`, { id, key: field.key })
+          new ValidationError(`Missing default for ${field.key}.`, { path: bindingPath })
         );
       }
       continue;
@@ -200,7 +256,7 @@ function ensureEntries(registry, id, fields, defaults) {
       return errorResult(validationError);
     }
 
-    const path = buildPath(id, field.key);
+    const path = joinPath(bindingPath, field.key);
     const result = ensureEntry(registry, path, value, field.codec);
     if (!result.ok) {
       return result;
@@ -208,17 +264,7 @@ function ensureEntries(registry, id, fields, defaults) {
     keys.push(path);
   }
 
-  return okResult({ id, keys });
-}
-
-function ensureEntriesExist(registry, id, fields) {
-  for (const field of fields) {
-    const path = buildPath(id, field.key);
-    const result = registry.read(path);
-    if (!result.ok) {
-      throw new Error(`Live policy "${id}" missing config: ${path}`);
-    }
-  }
+  return okResult({ keys });
 }
 
 function readValue(registry, path) {
@@ -229,16 +275,17 @@ function readValue(registry, path) {
   return result.data.value;
 }
 
-function readLiveValues(registry, id, fields) {
-  const values = {};
-  for (const field of fields) {
-    values[field.key] = readValue(registry, buildPath(id, field.key));
-  }
-  return values;
-}
-
 function createLiveResolver(registry, path) {
   return () => readValue(registry, path);
+}
+
+function createLiveOptions(registry, bindingPath, fields) {
+  const liveOptions = {};
+  for (const field of fields) {
+    const path = joinPath(bindingPath, field.key);
+    liveOptions[field.key] = createLiveResolver(registry, path);
+  }
+  return liveOptions;
 }
 
 function pickStaticOptions(defaults, liveKeys) {
@@ -252,167 +299,252 @@ function pickStaticOptions(defaults, liveKeys) {
   return staticOptions;
 }
 
-/**
- * Register live retry defaults in the registry.
- * @param {import('./registry.js').ConfigRegistry} registry
- * @param {string} id
- * @param {object} [defaults]
- * @returns {{ ok: true, data: { id: string, keys: string[] } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
- */
-export function defineLiveRetry(registry, id, defaults = {}) {
-  assertRegistry(registry);
-  const normalizedId = normalizeId(id);
-  return ensureEntries(registry, normalizedId, RETRY_FIELDS, defaults);
+function buildRetryPolicy(registry, bindingPath, defaults) {
+  const liveOptions = createLiveOptions(registry, bindingPath, RETRY_FIELDS);
+  const staticOptions = pickStaticOptions(
+    defaults,
+    RETRY_FIELDS.map((field) => field.key)
+  );
+  return new CorePolicy((fn) => retry(fn, { ...staticOptions, ...liveOptions }));
 }
 
-/**
- * Register live bulkhead defaults in the registry.
- * @param {import('./registry.js').ConfigRegistry} registry
- * @param {string} id
- * @param {object} [defaults]
- * @returns {{ ok: true, data: { id: string, keys: string[] } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
- */
-export function defineLiveBulkhead(registry, id, defaults = {}) {
-  assertRegistry(registry);
-  const normalizedId = normalizeId(id);
-  return ensureEntries(registry, normalizedId, BULKHEAD_FIELDS, defaults);
+function buildBulkheadPolicy(registry, bindingPath, defaults) {
+  const liveOptions = createLiveOptions(registry, bindingPath, BULKHEAD_FIELDS);
+  const staticOptions = pickStaticOptions(
+    defaults,
+    BULKHEAD_FIELDS.map((field) => field.key)
+  );
+  const livePolicy = bulkhead({ ...staticOptions, ...liveOptions });
+  return new CorePolicy((fn) => livePolicy.execute(fn));
 }
 
-/**
- * Register live circuit breaker defaults in the registry.
- * @param {import('./registry.js').ConfigRegistry} registry
- * @param {string} id
- * @param {object} [defaults]
- * @returns {{ ok: true, data: { id: string, keys: string[] } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
- */
-export function defineLiveCircuitBreaker(registry, id, defaults = {}) {
-  assertRegistry(registry);
-  const normalizedId = normalizeId(id);
-  return ensureEntries(registry, normalizedId, CIRCUIT_FIELDS, defaults);
+function buildCircuitPolicy(registry, bindingPath, defaults) {
+  const liveOptions = createLiveOptions(registry, bindingPath, CIRCUIT_FIELDS);
+  const staticOptions = pickStaticOptions(
+    defaults,
+    CIRCUIT_FIELDS.map((field) => field.key)
+  );
+  const livePolicy = circuitBreaker({ ...staticOptions, ...liveOptions });
+  return new CorePolicy((fn) => livePolicy.execute(fn));
 }
 
-/**
- * Register live timeout defaults in the registry.
- * @param {import('./registry.js').ConfigRegistry} registry
- * @param {string} id
- * @param {object} [defaults]
- * @returns {{ ok: true, data: { id: string, keys: string[] } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
- */
-export function defineLiveTimeout(registry, id, defaults = {}) {
-  assertRegistry(registry);
-  const normalizedId = normalizeId(id);
-  return ensureEntries(registry, normalizedId, TIMEOUT_FIELDS, defaults);
+function buildTimeoutPolicy(registry, bindingPath, defaults) {
+  const { ms } = createLiveOptions(registry, bindingPath, TIMEOUT_FIELDS);
+  const staticOptions = pickStaticOptions(defaults, ['ms']);
+  return new CorePolicy((fn) => timeout(ms, fn, staticOptions));
 }
 
-/**
- * Policy class with live-control helpers.
- */
-export class Policy extends CorePolicy {
-  static liveRetry(id, registry, defaults) {
-    assertRegistry(registry);
-    const normalizedId = normalizeId(id);
+function normalizeStaticPolicy(policy) {
+  if (policy instanceof CorePolicy) {
+    return policy;
+  }
+  if (policy && typeof policy.execute === 'function') {
+    return new CorePolicy((fn) => policy.execute(fn));
+  }
+  throw new Error('Static policy must expose an execute(fn) method.');
+}
 
-    if (defaults) {
-      const result = defineLiveRetry(registry, normalizedId, defaults);
-      if (!result.ok) {
-        throw new Error(result.error.message);
-      }
-    } else {
-      ensureEntriesExist(registry, normalizedId, RETRY_FIELDS);
-    }
-
-    const staticOptions = pickStaticOptions(
-      defaults,
-      RETRY_FIELDS.map((field) => field.key)
-    );
-
-    return new Policy((fn) => {
-      const liveValues = readLiveValues(registry, normalizedId, RETRY_FIELDS);
-      return retry(fn, { ...staticOptions, ...liveValues });
-    });
+function buildPolicyFromNode(node, registry, basePath) {
+  if (node.kind === 'static') {
+    return normalizeStaticPolicy(node.policy);
   }
 
-  static liveBulkhead(id, registry, defaults) {
-    assertRegistry(registry);
-    const normalizedId = normalizeId(id);
+  const bindingPath = joinPath(basePath, normalizeBinding(node.binding));
+  const defaults = node.defaults ?? {};
 
-    if (defaults) {
-      const result = defineLiveBulkhead(registry, normalizedId, defaults);
-      if (!result.ok) {
-        throw new Error(result.error.message);
-      }
-    } else {
-      ensureEntriesExist(registry, normalizedId, BULKHEAD_FIELDS);
-    }
+  switch (node.kind) {
+    case 'retry':
+      return buildRetryPolicy(registry, bindingPath, defaults);
+    case 'bulkhead':
+      return buildBulkheadPolicy(registry, bindingPath, defaults);
+    case 'circuitBreaker':
+      return buildCircuitPolicy(registry, bindingPath, defaults);
+    case 'timeout':
+      return buildTimeoutPolicy(registry, bindingPath, defaults);
+    default:
+      throw new Error(`Unsupported live policy kind: ${node.kind}`);
+  }
+}
 
-    const staticOptions = pickStaticOptions(
-      defaults,
-      BULKHEAD_FIELDS.map((field) => field.key)
-    );
-    const limitPath = buildPath(normalizedId, 'limit');
-    const queueLimitPath = buildPath(normalizedId, 'queueLimit');
+/**
+ * Declarative builder for live policy stacks.
+ *
+ * Live policy plans describe the shape of a policy stack without
+ * binding it to a registry. Plans become executable policies once
+ * registered with a ControlPlane.
+ */
+export class LivePolicyPlan {
+  #nodes;
 
-    const livePolicy = bulkhead({
-      ...staticOptions,
-      limit: createLiveResolver(registry, limitPath),
-      queueLimit: createLiveResolver(registry, queueLimitPath),
-    });
-
-    return new Policy((fn) => livePolicy.execute(fn));
+  constructor(nodes) {
+    this.#nodes = nodes;
   }
 
-  static liveCircuitBreaker(id, registry, defaults) {
-    assertRegistry(registry);
-    const normalizedId = normalizeId(id);
-
-    if (defaults) {
-      const result = defineLiveCircuitBreaker(registry, normalizedId, defaults);
-      if (!result.ok) {
-        throw new Error(result.error.message);
-      }
-    } else {
-      ensureEntriesExist(registry, normalizedId, CIRCUIT_FIELDS);
-    }
-
-    const staticOptions = pickStaticOptions(
-      defaults,
-      CIRCUIT_FIELDS.map((field) => field.key)
-    );
-    const thresholdPath = buildPath(normalizedId, 'threshold');
-    const durationPath = buildPath(normalizedId, 'duration');
-    const successThresholdPath = buildPath(normalizedId, 'successThreshold');
-
-    const livePolicy = circuitBreaker({
-      ...staticOptions,
-      threshold: createLiveResolver(registry, thresholdPath),
-      duration: createLiveResolver(registry, durationPath),
-      successThreshold: createLiveResolver(registry, successThresholdPath),
-    });
-
-    return new Policy((fn) => livePolicy.execute(fn));
+  /**
+   * Define a live retry policy binding.
+   * @param {string} binding
+   * @param {object} [defaults]
+   * @returns {LivePolicyPlan}
+   */
+  static retry(binding, defaults = {}) {
+    return new LivePolicyPlan([{ kind: 'retry', binding, defaults }]);
   }
 
-  static liveTimeout(id, registry, defaults) {
-    assertRegistry(registry);
-    const normalizedId = normalizeId(id);
+  /**
+   * Define a live bulkhead policy binding.
+   * @param {string} binding
+   * @param {object} defaults
+   * @returns {LivePolicyPlan}
+   */
+  static bulkhead(binding, defaults) {
+    return new LivePolicyPlan([{ kind: 'bulkhead', binding, defaults }]);
+  }
 
-    if (defaults) {
-      const result = defineLiveTimeout(registry, normalizedId, defaults);
-      if (!result.ok) {
-        throw new Error(result.error.message);
-      }
-    } else {
-      ensureEntriesExist(registry, normalizedId, TIMEOUT_FIELDS);
+  /**
+   * Define a live circuit breaker policy binding.
+   * @param {string} binding
+   * @param {object} defaults
+   * @returns {LivePolicyPlan}
+   */
+  static circuitBreaker(binding, defaults) {
+    return new LivePolicyPlan([{ kind: 'circuitBreaker', binding, defaults }]);
+  }
+
+  /**
+   * Define a live timeout policy binding.
+   * @param {string} binding
+   * @param {number | object} msOrDefaults
+   * @param {object} [options]
+   * @returns {LivePolicyPlan}
+   */
+  static timeout(binding, msOrDefaults, options = {}) {
+    const defaults =
+      typeof msOrDefaults === 'number' ? { ms: msOrDefaults, ...options } : msOrDefaults;
+    return new LivePolicyPlan([{ kind: 'timeout', binding, defaults }]);
+  }
+
+  /**
+   * Wrap a static policy inside a live plan.
+   * @param {CorePolicy | { execute(fn: () => Promise<unknown>): Promise<unknown> }} policy
+   * @returns {LivePolicyPlan}
+   */
+  static static(policy) {
+    return new LivePolicyPlan([{ kind: 'static', policy }]);
+  }
+
+  /**
+   * Wrap another live plan inside this one.
+   * @param {LivePolicyPlan} otherPlan
+   * @returns {LivePolicyPlan}
+   */
+  wrap(otherPlan) {
+    if (!(otherPlan instanceof LivePolicyPlan)) {
+      throw new Error('wrap() expects a LivePolicyPlan.');
+    }
+    return new LivePolicyPlan([...this.#nodes, ...otherPlan.#nodes]);
+  }
+
+  get nodes() {
+    return [...this.#nodes];
+  }
+}
+
+/**
+ * Control plane orchestrator for live policy bindings.
+ */
+export class ControlPlane {
+  #registry;
+
+  /**
+   * @param {import('./registry.js').ConfigRegistry} registry
+   */
+  constructor(registry) {
+    assertRegistry(registry);
+    this.#registry = registry;
+  }
+
+  /**
+   * Bind a live policy plan to a base path.
+   * @param {LivePolicyPlan} plan
+   * @param {string} basePath
+   * @returns {{ ok: true, data: { policy: CorePolicy, bindings: Array<{ binding: string, kind: string, path: string }>, paths: string[] } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+   */
+  registerLivePolicy(plan, basePath) {
+    if (!(plan instanceof LivePolicyPlan)) {
+      return errorResult(new ValidationError('LivePolicyPlan instance required.'));
     }
 
-    const staticOptions = pickStaticOptions(
-      defaults,
-      TIMEOUT_FIELDS.map((field) => field.key)
-    );
+    const pathError = validatePath(basePath);
+    if (pathError) {
+      return errorResult(pathError);
+    }
+    const normalizedPath = normalizePath(basePath);
 
-    return new Policy((fn) => {
-      const { ms } = readLiveValues(registry, normalizedId, TIMEOUT_FIELDS);
-      return timeout(ms, fn, staticOptions);
+    const nodes = plan.nodes;
+    if (nodes.length === 0) {
+      return errorResult(new ValidationError('LivePolicyPlan cannot be empty.'));
+    }
+
+    const bindings = [];
+    const bindingNames = new Set();
+
+    for (const node of nodes) {
+      if (node.kind === 'static') {
+        continue;
+      }
+
+      const spec = POLICY_SPECS[node.kind];
+      if (!spec) {
+        return errorResult(
+          new ValidationError('Unsupported live policy kind.', { kind: node.kind })
+        );
+      }
+
+      const bindingError = validateBinding(node.binding);
+      if (bindingError) {
+        return errorResult(bindingError);
+      }
+
+      const normalizedBinding = normalizeBinding(node.binding);
+      if (bindingNames.has(normalizedBinding)) {
+        return errorResult(
+          new ValidationError('Duplicate live policy binding.', { binding: normalizedBinding })
+        );
+      }
+      bindingNames.add(normalizedBinding);
+
+      const bindingPath = joinPath(normalizedPath, normalizedBinding);
+      const defaults = node.defaults ?? {};
+      if (defaults === null || typeof defaults !== 'object') {
+        return errorResult(
+          new ValidationError('Live policy defaults must be an object.', {
+            binding: normalizedBinding,
+          })
+        );
+      }
+
+      const result = ensureEntries(this.#registry, bindingPath, spec.fields, defaults);
+      if (!result.ok) {
+        return result;
+      }
+
+      bindings.push({
+        binding: normalizedBinding,
+        kind: node.kind,
+        path: bindingPath,
+      });
+    }
+
+    let policy;
+    for (const node of nodes) {
+      const nodePolicy = buildPolicyFromNode(node, this.#registry, normalizedPath);
+      policy = policy ? policy.wrap(nodePolicy) : nodePolicy;
+    }
+
+    return okResult({
+      policy,
+      bindings,
+      paths: bindings.map((binding) => binding.path),
     });
   }
 }

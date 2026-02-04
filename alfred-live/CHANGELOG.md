@@ -9,8 +9,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Policy.live*` wrappers for retry, bulkhead, circuit breaker, and timeout.
-- Helpers to register live policy defaults (`defineLive*`).
+- `LivePolicyPlan` builders for retry, bulkhead, circuit breaker, and timeout.
+- `ControlPlane.registerLivePolicy` for binding live stacks to registry paths.
 - Live policy examples and documentation.
 
 ## [0.8.2] - 2026-02-04

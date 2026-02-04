@@ -194,11 +194,14 @@ export interface LiveCircuitBreakerDefaults {
 /**
  * Defaults for live timeout configuration.
  */
-export interface LiveTimeoutDefaults {
-  ms?: number;
+export interface LiveTimeoutOptions {
   onTimeout?: (elapsed: number) => void;
   telemetry?: TelemetrySink;
   clock?: any;
+}
+
+export interface LiveTimeoutDefaults extends LiveTimeoutOptions {
+  ms: number;
 }
 
 /**
@@ -256,55 +259,68 @@ export class CommandRouter {
 }
 
 /**
- * Register live retry defaults in the registry.
+ * Supported live policy kinds.
  */
-export function defineLiveRetry(
-  registry: ConfigRegistry,
-  id: string,
-  defaults?: LiveRetryDefaults
-): Result<{ id: string; keys: string[] }>;
+export type LivePolicyKind = 'retry' | 'bulkhead' | 'circuitBreaker' | 'timeout';
 
 /**
- * Register live bulkhead defaults in the registry.
+ * Resolved binding for a live policy entry.
  */
-export function defineLiveBulkhead(
-  registry: ConfigRegistry,
-  id: string,
-  defaults?: LiveBulkheadDefaults
-): Result<{ id: string; keys: string[] }>;
+export interface LivePolicyBinding {
+  binding: string;
+  kind: LivePolicyKind;
+  path: string;
+}
 
 /**
- * Register live circuit breaker defaults in the registry.
+ * Declarative builder for live policy stacks.
  */
-export function defineLiveCircuitBreaker(
-  registry: ConfigRegistry,
-  id: string,
-  defaults?: LiveCircuitBreakerDefaults
-): Result<{ id: string; keys: string[] }>;
+export class LivePolicyPlan {
+  /**
+   * Define a live retry policy binding.
+   */
+  static retry(binding: string, defaults?: LiveRetryDefaults): LivePolicyPlan;
+  /**
+   * Define a live bulkhead policy binding.
+   */
+  static bulkhead(binding: string, defaults: LiveBulkheadDefaults): LivePolicyPlan;
+  /**
+   * Define a live circuit breaker policy binding.
+   */
+  static circuitBreaker(binding: string, defaults: LiveCircuitBreakerDefaults): LivePolicyPlan;
+  /**
+   * Define a live timeout policy binding.
+   */
+  static timeout(binding: string, ms: number, options?: LiveTimeoutOptions): LivePolicyPlan;
+  static timeout(binding: string, defaults: LiveTimeoutDefaults): LivePolicyPlan;
+  /**
+   * Wrap a static policy inside a live plan.
+   */
+  static static(
+    policy: CorePolicy | { execute(fn: () => Promise<unknown>): Promise<unknown> }
+  ): LivePolicyPlan;
+  /**
+   * Wrap another plan inside this one.
+   */
+  wrap(otherPlan: LivePolicyPlan): LivePolicyPlan;
+  /**
+   * Raw plan nodes.
+   */
+  readonly nodes: Array<{
+    kind: LivePolicyKind | 'static';
+    binding?: string;
+    defaults?: Record<string, unknown>;
+    policy?: CorePolicy | { execute(fn: () => Promise<unknown>): Promise<unknown> };
+  }>;
+}
 
 /**
- * Register live timeout defaults in the registry.
+ * Control plane orchestrator for live policy bindings.
  */
-export function defineLiveTimeout(
-  registry: ConfigRegistry,
-  id: string,
-  defaults?: LiveTimeoutDefaults
-): Result<{ id: string; keys: string[] }>;
-
-/**
- * Policy class with live-control helpers.
- */
-export class Policy extends CorePolicy {
-  static liveRetry(id: string, registry: ConfigRegistry, defaults?: LiveRetryDefaults): Policy;
-  static liveBulkhead(
-    id: string,
-    registry: ConfigRegistry,
-    defaults?: LiveBulkheadDefaults
-  ): Policy;
-  static liveCircuitBreaker(
-    id: string,
-    registry: ConfigRegistry,
-    defaults?: LiveCircuitBreakerDefaults
-  ): Policy;
-  static liveTimeout(id: string, registry: ConfigRegistry, defaults?: LiveTimeoutDefaults): Policy;
+export class ControlPlane {
+  constructor(registry: ConfigRegistry);
+  registerLivePolicy(
+    plan: LivePolicyPlan,
+    basePath: string
+  ): Result<{ policy: CorePolicy; bindings: LivePolicyBinding[]; paths: string[] }>;
 }

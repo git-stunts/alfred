@@ -46,8 +46,8 @@ See the ecosystem roadmap at [ROADMAP.md](https://github.com/git-stunts/alfred/b
 
 ## Live Control Plane
 
-Need to tune policies without redeploy? Use `@git-stunts/alfred-live` for live policy wrappers
-and a config registry that drives Alfred at runtime.
+Need to tune policies without redeploy? Use `@git-stunts/alfred-live` for
+`LivePolicyPlan` + `ControlPlane` bindings that drive Alfred at runtime.
 
 ---
 
