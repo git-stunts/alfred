@@ -47,8 +47,18 @@ function resolveNextVersion(currentVersion, arg) {
 }
 
 const packageDirs = getWorkspacePackageDirs();
-const versions = packageDirs.map((dir) => readJson(path.join(dir, 'package.json')).version);
+const workspacePackages = packageDirs.map((dir) => {
+  const packageJson = readJson(path.join(dir, 'package.json'));
+  return {
+    dir,
+    name: packageJson.name ?? path.basename(dir),
+    version: packageJson.version,
+  };
+});
+
+const versions = workspacePackages.map((pkg) => pkg.version);
 const uniqueVersions = Array.from(new Set(versions));
+const workspaceNames = new Set(workspacePackages.map((pkg) => pkg.name));
 
 if (uniqueVersions.length !== 1) {
   throw new Error(`Workspace versions are not aligned: ${uniqueVersions.join(', ')}`);
@@ -57,10 +67,25 @@ if (uniqueVersions.length !== 1) {
 const currentVersion = uniqueVersions[0];
 const nextVersion = resolveNextVersion(currentVersion, process.argv[2]);
 
-for (const dir of packageDirs) {
+function updateInternalDependencies(packageJson, nextVersion) {
+  const sections = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
+  for (const section of sections) {
+    const deps = packageJson[section];
+    if (!deps || typeof deps !== 'object') continue;
+    for (const [name, current] of Object.entries(deps)) {
+      if (!workspaceNames.has(name)) continue;
+      if (current !== nextVersion) {
+        deps[name] = nextVersion;
+      }
+    }
+  }
+}
+
+for (const { dir } of workspacePackages) {
   const packageJsonPath = path.join(dir, 'package.json');
   const packageJson = readJson(packageJsonPath);
   packageJson.version = nextVersion;
+  updateInternalDependencies(packageJson, nextVersion);
   writeJson(packageJsonPath, packageJson);
 
   const jsrPath = path.join(dir, 'jsr.json');

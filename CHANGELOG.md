@@ -10,6 +10,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.1] - 2026-02-04
+
+### Changed
+
+- Version bump to keep lockstep alignment with the Alfred package family (no API changes).
+
 ## [0.8.0] - 2026-02-03
 
 ### Changed
@@ -137,6 +143,12 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [0.8.1] - 2026-02-04
+
+### Fixed
+
+- Pin `@git-stunts/alfred` dependency to an exact version to avoid publishing `workspace:*`.
 
 ## [0.8.0] - 2026-02-03
 

@@ -1,6 +1,5 @@
 {
   "name": "alfred-web-demo",
-  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -11,5 +10,6 @@
   "devDependencies": {
     "vite": "^5.0.0",
     "@playwright/test": "^1.40.0"
-  }
+  },
+  "private": true
 }
