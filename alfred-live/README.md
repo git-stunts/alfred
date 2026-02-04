@@ -65,6 +65,55 @@ router.execute({ type: 'write_config', path: 'retry/count', value: '5' });
 router.execute({ type: 'list_config', prefix: 'retry' });
 ```
 
+## Command Channel (JSONL)
+
+Alfred Live exposes a canonical JSONL envelope for sending commands over
+stdin/stdout. Use the helper functions to decode, validate, and execute.
+
+```javascript
+import {
+  CommandRouter,
+  ConfigRegistry,
+  executeCommandLine,
+  decodeCommandEnvelope,
+  encodeCommandEnvelope,
+} from '@git-stunts/alfred-live';
+
+const registry = new ConfigRegistry();
+const router = new CommandRouter(registry);
+
+const line = JSON.stringify({
+  id: 'cmd-1',
+  cmd: 'list_config',
+  args: { prefix: 'retry' },
+});
+
+const decoded = decodeCommandEnvelope(line);
+if (!decoded.ok) throw new Error(decoded.error.message);
+
+const resultLine = executeCommandLine(router, line);
+if (!resultLine.ok) throw new Error(resultLine.error.message);
+console.log(resultLine.data);
+
+const outgoing = encodeCommandEnvelope({
+  id: 'cmd-2',
+  cmd: 'read_config',
+  args: { path: 'retry/count' },
+});
+if (outgoing.ok) console.log(outgoing.data);
+```
+
+## CLI (`alfredctl`)
+
+`alfredctl` emits JSONL commands to stdout. Pipe its output into your control
+plane transport (stdin/stdout, ssh, etc.).
+
+```bash
+alfredctl list retry
+alfredctl read retry/count
+alfredctl write retry/count 5
+```
+
 ## Live Policies
 
 Live policies are described with a `LivePolicyPlan` and then bound to a registry
@@ -121,13 +170,16 @@ registry.write('gateway/api/retry/retries', '5');
 ## Examples
 
 - `alfred-live/examples/control-plane/basic.js` — in-process registry + command router usage.
+- `alfred-live/examples/control-plane/jsonl-channel.js` — JSONL command envelope execution.
 - `alfred-live/examples/control-plane/live-policies.js` — live policy wrappers driven by registry state.
 
 ## Status
 
-v0.9.0 live policies implemented:
+v0.10.0 control plane primitives implemented:
 
 - `Adaptive<T>` live values with version + updatedAt.
 - `ConfigRegistry` for typed config and validation.
 - Command router for `read_config`, `write_config`, `list_config`.
 - `LivePolicyPlan` + `ControlPlane.registerLivePolicy` for live policy stacks.
+- Canonical JSONL command envelope + helpers.
+- `alfredctl` CLI for emitting JSONL commands.

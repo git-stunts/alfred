@@ -104,7 +104,7 @@ router.execute({ type: 'list_config', prefix: 'bulkhead' });
 
 ---
 
-## Recipe: Control plane CLI (planned)
+## Recipe: Control plane CLI (JSONL)
 
 **Goal**
 Send control plane commands from a CLI.
@@ -112,5 +112,10 @@ Send control plane commands from a CLI.
 **Packages**
 - `@git-stunts/alfred-live`
 
-**Status**
-Planned for v0.10 as `alfredctl`.
+**Example**
+
+```bash
+alfredctl list retry
+alfredctl read retry/count
+alfredctl write retry/count 5
+```

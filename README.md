@@ -25,7 +25,7 @@ Alfred is a **policy engine** for async resilience: composable, observable, test
 ## Packages
 
 - `@git-stunts/alfred` — Resilience policies and composition utilities for async operations.
-- `@git-stunts/alfred-live` — In-memory control plane primitives plus live policy plans.
+- `@git-stunts/alfred-live` — Control plane primitives, live policy plans, and the `alfredctl` CLI.
 
 ## Versioning Policy
 
