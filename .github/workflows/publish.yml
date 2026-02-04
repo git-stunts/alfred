@@ -6,7 +6,39 @@ on:
       - 'v*'
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm lint
+      - run: pnpm test
+
+      # Browser tests
+      - run: pnpm demo:web:install
+      - run: npx --prefix alfred/examples/web playwright install --with-deps chromium
+      - run: pnpm test:browser
+
+      # Cloudflare Workers tests
+      - run: docker build -f alfred/examples/cloudflare-worker/Dockerfile -t alfred-cf-test alfred
+      - run: docker run --rm alfred-cf-test
+
   publish:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required for creating releases
