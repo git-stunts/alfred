@@ -205,9 +205,17 @@ for (const dir of packageDirs) {
 
 reportErrors(errors);
 
-const packResult = spawnSync('pnpm', ['-r', 'pack', '--dry-run'], { stdio: 'inherit' });
-if (packResult.status !== 0) {
-  process.exit(packResult.status ?? 1);
+for (const dir of packageDirs) {
+  const packageJsonPath = path.join(dir, 'package.json');
+  const packageJson = readJson(packageJsonPath);
+  if (packageJson.private) {
+    continue;
+  }
+
+  const packResult = spawnSync('npm', ['pack', '--dry-run'], { stdio: 'inherit', cwd: dir });
+  if (packResult.status !== 0) {
+    process.exit(packResult.status ?? 1);
+  }
 }
 
 console.log('\nPreflight checks passed.');
