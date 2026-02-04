@@ -206,6 +206,9 @@ function validateOkResultEnvelope(envelope) {
   if (Object.prototype.hasOwnProperty.call(envelope, 'error')) {
     return new ValidationError('error must be omitted when ok is true.');
   }
+  if (!Object.prototype.hasOwnProperty.call(envelope, 'data') || envelope.data == null) {
+    return new ValidationError('data is required when ok is true.');
+  }
   return null;
 }
 
