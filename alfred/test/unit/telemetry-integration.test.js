@@ -187,7 +187,7 @@ describe('Telemetry Integration', () => {
       });
 
       // 3. Reject
-      await expect(policy.execute(() => delay())).rejects.toThrow('Bulkhead rejected');
+      await expect(policy.execute(() => Promise.resolve())).rejects.toThrow('Bulkhead rejected');
 
       // reject event
       expect(sink.events[2]).toMatchObject({
