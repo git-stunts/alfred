@@ -22,6 +22,15 @@ This repository contains the **Alfred package ecosystem**. Each package is publi
 
 Alfred is a **policy engine** for async resilience: composable, observable, testable — and eventually **operable** (live-tunable by ID without redeploy).
 
+## Latest Release
+
+`v0.10.0` (2026-02-04) — JSONL command channel + `alfredctl` CLI for the control plane.
+
+## Package Badges
+
+- `@git-stunts/alfred`: [![npm](https://img.shields.io/npm/v/@git-stunts/alfred?label=npm)](https://www.npmjs.com/package/@git-stunts/alfred) [![JSR](https://jsr.io/badges/@git-stunts/alfred)](https://jsr.io/@git-stunts/alfred)
+- `@git-stunts/alfred-live`: [![npm](https://img.shields.io/npm/v/@git-stunts/alfred-live?label=npm)](https://www.npmjs.com/package/@git-stunts/alfred-live) [![JSR](https://jsr.io/badges/@git-stunts/alfred-live)](https://jsr.io/@git-stunts/alfred-live)
+
 ## Packages
 
 - `@git-stunts/alfred` — Resilience policies and composition utilities for async operations.
