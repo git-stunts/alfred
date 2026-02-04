@@ -180,7 +180,7 @@ function commandFromEnvelope(envelope) {
   }
 }
 
-function validateResultEnvelope(envelope) {
+function validateResultEnvelopeShape(envelope) {
   if (!isPlainObject(envelope)) {
     return new InvalidCommandError('Result envelope must be an object.');
   }
@@ -199,26 +199,45 @@ function validateResultEnvelope(envelope) {
     return new ValidationError('ok must be a boolean.', { ok: envelope.ok });
   }
 
-  if (envelope.ok) {
-    if (Object.prototype.hasOwnProperty.call(envelope, 'error')) {
-      return new ValidationError('error must be omitted when ok is true.');
-    }
-  } else if (Object.prototype.hasOwnProperty.call(envelope, 'data')) {
+  return null;
+}
+
+function validateOkResultEnvelope(envelope) {
+  if (Object.prototype.hasOwnProperty.call(envelope, 'error')) {
+    return new ValidationError('error must be omitted when ok is true.');
+  }
+  return null;
+}
+
+function validateErrorResultEnvelope(envelope) {
+  if (Object.prototype.hasOwnProperty.call(envelope, 'data')) {
     return new ValidationError('data must be omitted when ok is false.');
-  } else if (!isPlainObject(envelope.error)) {
+  }
+  if (!isPlainObject(envelope.error)) {
     return new ValidationError('error must be an object when ok is false.');
-  } else {
-    const codeError = validateString(envelope.error.code, 'error.code');
-    if (codeError) {
-      return codeError;
-    }
-    const messageError = validateString(envelope.error.message, 'error.message');
-    if (messageError) {
-      return messageError;
-    }
+  }
+  const codeError = validateString(envelope.error.code, 'error.code');
+  if (codeError) {
+    return codeError;
+  }
+  const messageError = validateString(envelope.error.message, 'error.message');
+  if (messageError) {
+    return messageError;
+  }
+  return null;
+}
+
+function validateResultEnvelope(envelope) {
+  const baseError = validateResultEnvelopeShape(envelope);
+  if (baseError) {
+    return baseError;
   }
 
-  return null;
+  if (envelope.ok) {
+    return validateOkResultEnvelope(envelope);
+  }
+
+  return validateErrorResultEnvelope(envelope);
 }
 
 /**
