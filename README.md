@@ -80,3 +80,13 @@ The publish flow runs `release:preflight`, which verifies:
 - `alfred/` — Core package
 - `alfred-live/` — Control plane package
 - `scripts/release/` — Release tooling
+
+---
+
+## License
+
+Apache-2.0 © 2026 by James Ross
+
+<p align="center">
+  <sub>Built by <a href="https://github.com/flyingrobots">FLYING•ROBOTS</a></sub>
+</p>
