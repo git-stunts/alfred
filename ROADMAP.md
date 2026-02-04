@@ -37,8 +37,8 @@ Alfred becomes a **runtime-controlled resilience layer**:
 - [x] v0.5 — Correctness & Coherence (`@git-stunts/alfred`)
 - [x] v0.6 — Typed Knobs & Stable Semantics (`@git-stunts/alfred`)
 - [x] v0.7 — Rate Limiting (Throughput) Policy (`@git-stunts/alfred`)
-- [ ] v0.8 — Control Plane Core (In-Memory) (`@git-stunts/alfred-live`)
-- [ ] v0.9 — Live Policies by ID (No Redeploy) (`@git-stunts/alfred-live`)
+- [x] v0.8 — Control Plane Core (In-Memory) (`@git-stunts/alfred-live`)
+- [x] v0.9 — Live Policies by ID (No Redeploy) (`@git-stunts/alfred-live`)
 - [ ] v0.10 — Control Plane Command Channel + Audit Ordering (`@git-stunts/alfred-live`)
 - [ ] v1.0 — Production Contract Release (all packages)
 
@@ -455,7 +455,9 @@ As an operator, I want to tune a live system without redeploying, using stable I
   - Policy.liveCircuitBreaker(id, plane, defaults?)
   - Policy.liveTimeout(id, plane, defaults?)
 - Defaults:
-  - if key missing, register defaults automatically OR require explicit plane.define (pick one; I recommend explicit)
+  - `defineLive*` registers defaults explicitly
+  - `Policy.live*` can auto-register if defaults are provided
+  - If neither is used, missing entries throw on construction
 - Snapshot semantics:
   - Retry/Timeout: per execute
   - Bulkhead: per admission

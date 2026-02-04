@@ -44,6 +44,11 @@ npx jsr add @git-stunts/alfred
 
 See the ecosystem roadmap at [ROADMAP.md](https://github.com/git-stunts/alfred/blob/main/ROADMAP.md).
 
+## Live Control Plane
+
+Need to tune policies without redeploy? Use `@git-stunts/alfred-live` for live policy wrappers
+and a config registry that drives Alfred at runtime.
+
 ---
 
 ## 20-second win
