@@ -29,8 +29,8 @@ importers:
   alfred-live:
     dependencies:
       '@git-stunts/alfred':
-        specifier: 0.8.1
-        version: 0.8.1
+        specifier: 0.8.2
+        version: link:../alfred
     devDependencies:
       '@eslint/js':
         specifier: ^9.17.0
@@ -249,10 +249,6 @@ packages:
   '@eslint/plugin-kit@0.4.1':
     resolution: {integrity: sha512-43/qtrDUokr7LJqoF2c3+RInu/t4zfrpYdoSDfYyhg52rwLV6TnOvdG4fXm7IkSB3wErkcmJS9iEhjVtOSEjjA==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
-
-  '@git-stunts/alfred@0.8.1':
-    resolution: {integrity: sha512-PK/lD1vkOu0cQ3I0/rAH7XP/svuRcpsnBc7dxh7oixF5vGAJessejTrxLqA5nP3tGikUvWhSjI23jFCG9OOwUg==}
-    engines: {node: '>=20.0.0'}
 
   '@humanfs/core@0.19.1':
     resolution: {integrity: sha512-5DyQ4+1JEUzejeK1JGICcideyfUbGixgS9jNgex5nqkW+cY7WZhxBigmieN5Qnw9ZosSNVC9KQKyb+GUaGyKUA==}
@@ -1178,8 +1174,6 @@ snapshots:
     dependencies:
       '@eslint/core': 0.17.0
       levn: 0.4.1
-
-  '@git-stunts/alfred@0.8.1': {}
 
   '@humanfs/core@0.19.1': {}
 
