@@ -1,6 +1,13 @@
 import { Policy as CorePolicy, bulkhead, circuitBreaker, retry, timeout } from '@git-stunts/alfred';
 import { Adaptive } from './adaptive.js';
-import { ErrorCode, InvalidPathError, ValidationError, errorResult, okResult } from './errors.js';
+import {
+  AlfredLiveError,
+  ErrorCode,
+  InvalidPathError,
+  ValidationError,
+  errorResult,
+  okResult,
+} from './errors.js';
 
 const BACKOFF_VALUES = ['constant', 'linear', 'exponential'];
 const JITTER_VALUES = ['none', 'full', 'equal', 'decorrelated'];
@@ -579,7 +586,17 @@ export class ControlPlane {
       return bindingsResult;
     }
 
-    const policy = buildPolicyStack(planResult.data.nodes, this.#registry, normalizedPath);
+    let policy;
+    try {
+      policy = buildPolicyStack(planResult.data.nodes, this.#registry, normalizedPath);
+    } catch (error) {
+      return errorResult(
+        new AlfredLiveError(ErrorCode.INTERNAL_ERROR, 'Failed to build live policy.', {
+          path: normalizedPath,
+          error: String(error),
+        })
+      );
+    }
     const { bindings } = bindingsResult.data;
 
     return okResult({

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { bulkhead } from '../../src/policies/bulkhead.js';
 import { BulkheadRejectedError } from '../../src/errors.js';
+import { defer, flush } from '../../../test/helpers/async.js';
 
 describe('bulkhead', () => {
   const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -163,17 +164,3 @@ describe('bulkhead', () => {
     await Promise.all([p1, p2, p3]);
   });
 });
-
-function defer() {
-  let resolve;
-  const promise = new Promise((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
-
-function flush() {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
-}

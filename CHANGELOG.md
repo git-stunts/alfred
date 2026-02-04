@@ -10,32 +10,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.0] - 2026-02-04
+## [0.9.0] - 2026-02-04 (@git-stunts/alfred)
 
 ### Changed
 
 - Bulkhead soft-shrink behavior documented and tested for live limit updates.
 
-## [0.8.2] - 2026-02-04
+## [0.8.2] - 2026-02-04 (@git-stunts/alfred)
 
 ### Changed
 
 - Release workflow updated for OIDC publishing (no API changes).
 
-## [0.8.1] - 2026-02-04
+## [0.8.1] - 2026-02-04 (@git-stunts/alfred)
 
 ### Changed
 
 - Version bump to keep lockstep alignment with the Alfred package family (no API changes).
 
-## [0.8.0] - 2026-02-03
+## [0.8.0] - 2026-02-03 (@git-stunts/alfred)
 
 ### Changed
 
 - Repository converted to a monorepo with `@git-stunts/alfred` as a workspace package.
 - Release tooling updated; no API changes in the core package.
 
-## [0.7.0] - 2026-02-02
+## [0.7.0] - 2026-02-02 (@git-stunts/alfred)
 
 ### Added
 
@@ -47,14 +47,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Telemetry events: `rateLimit.acquire`, `rateLimit.queued`, `rateLimit.rejected`
 - **Policy.rateLimit()**: Fluent API support for rate limiting
 
-## [0.6.9] - 2026-02-02
+## [0.6.9] - 2026-02-02 (@git-stunts/alfred)
 
 ### Added
 
 - **Cloudflare Workers Support**: Alfred now verified to work in Cloudflare Workers runtime via Miniflare tests.
 - **Cloudflare Workers CI**: Docker-based Miniflare tests run in CI to ensure continued compatibility.
 
-## [0.6.0] - 2026-02-02
+## [0.6.0] - 2026-02-02 (@git-stunts/alfred)
 
 ### Added
 
@@ -78,7 +78,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **ROADMAP.md**: v0.5 and v0.6 milestones marked complete.
 
-## [0.5.0] - 2026-02-02
+## [0.5.0] - 2026-02-02 (@git-stunts/alfred)
 
 ### Added
 
@@ -94,13 +94,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **ROADMAP.md**: Comprehensive milestone breakdown from v0.5 through v1.0 with user stories, requirements, and test specs.
 
-## [0.4.0] - 2026-02-02
+## [0.4.0] - 2026-02-02 (@git-stunts/alfred)
 
 ### Added
 
 - **Abortable Retries**: Pass an `AbortSignal` via the `signal` option to cancel retries and backoff sleeps early. The signal is also forwarded to the operation function.
 
-## [0.3.0] - 2026-02-01
+## [0.3.0] - 2026-02-01 (@git-stunts/alfred)
 
 ### Added
 
@@ -112,7 +112,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bulkhead Telemetry**: Ensure queued executions emit success/failure metrics to match direct execution.
 - **Hedge Cancellation**: Improved resource cleanup by implementing a strict cancellation check for scheduled hedges.
 
-## [0.2.1] - 2026-01-31
+## [0.2.1] - 2026-01-31 (@git-stunts/alfred)
 
 ### Added
 
@@ -122,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improved JSR score by adding rich type documentation and metadata.
 
-## [0.2.0] - 2026-01-30
+## [0.2.0] - 2026-01-30 (@git-stunts/alfred)
 
 ### Added
 
@@ -142,7 +142,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Various microtask timing issues in tests when using `TestClock`.
 
-## [0.1.0] - 2026-01-20
+## [0.1.0] - 2026-01-20 (@git-stunts/alfred)
 
 ### Added
 
@@ -156,7 +156,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.9.0] - 2026-02-04
+## [0.9.0] - 2026-02-04 (@git-stunts/alfred-live)
 
 ### Added
 
@@ -164,7 +164,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ControlPlane.registerLivePolicy` for binding live stacks to registry paths.
 - Live policy examples and documentation.
 
-## [0.8.2] - 2026-02-04
+## [0.8.2] - 2026-02-04 (@git-stunts/alfred-live)
 
 ### Added
 
@@ -174,13 +174,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Release workflow updated for OIDC publishing.
 
-## [0.8.1] - 2026-02-04
+## [0.8.1] - 2026-02-04 (@git-stunts/alfred-live)
 
 ### Fixed
 
 - Pin `@git-stunts/alfred` dependency to an exact version to avoid publishing `workspace:*`.
 
-## [0.8.0] - 2026-02-03
+## [0.8.0] - 2026-02-03 (@git-stunts/alfred-live)
 
 ### Added
 
@@ -188,7 +188,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ConfigRegistry` with typed parsing/formatting and validation before apply.
 - Command router for `read_config`, `write_config`, and `list_config`.
 
-## [0.7.0] - 2026-02-03
+## [0.7.0] - 2026-02-03 (@git-stunts/alfred-live)
 
 ### Added
 

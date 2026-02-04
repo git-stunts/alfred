@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { ConfigRegistry, ControlPlane, LivePolicyPlan } from '../../src/index.js';
+import { ConfigRegistry, ControlPlane, ErrorCode, LivePolicyPlan } from '../../src/index.js';
+import { defer, flush } from '../../../test/helpers/async.js';
 
 describe('ControlPlane.registerLivePolicy', () => {
   it('applies live bulkhead limits without canceling in-flight work', async () => {
@@ -78,18 +79,17 @@ describe('ControlPlane.registerLivePolicy', () => {
     await expect(policy.execute(fail)).rejects.toThrow('fail');
     expect(attempts).toBe(4);
   });
+
+  it('returns a Result when policy construction fails', () => {
+    const registry = new ConfigRegistry();
+    const controlPlane = new ControlPlane(registry);
+    const livePlan = LivePolicyPlan.static({ not: 'a policy' });
+
+    const result = controlPlane.registerLivePolicy(livePlan, 'service/api');
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe(ErrorCode.INTERNAL_ERROR);
+    }
+  });
 });
-
-function defer() {
-  let resolve;
-  const promise = new Promise((res) => {
-    resolve = res;
-  });
-  return { promise, resolve };
-}
-
-function flush() {
-  return new Promise((resolve) => {
-    setTimeout(resolve, 0);
-  });
-}
