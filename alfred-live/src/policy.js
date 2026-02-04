@@ -226,7 +226,7 @@ function resolveDefaultValue(field, defaults) {
   return undefined;
 }
 
-function ensureEntry(registry, path, defaultValue, codec) {
+function ensureEntry({ registry, path, defaultValue, codec }) {
   const result = registry.register(path, new Adaptive(defaultValue), codec);
   if (result.ok) {
     return okResult({ path });
@@ -237,7 +237,7 @@ function ensureEntry(registry, path, defaultValue, codec) {
   return result;
 }
 
-function ensureEntries(registry, bindingPath, fields, defaults) {
+function ensureEntries({ registry, bindingPath, fields, defaults }) {
   const keys = [];
 
   for (const field of fields) {
@@ -257,7 +257,7 @@ function ensureEntries(registry, bindingPath, fields, defaults) {
     }
 
     const path = joinPath(bindingPath, field.key);
-    const result = ensureEntry(registry, path, value, field.codec);
+    const result = ensureEntry({ registry, path, defaultValue: value, codec: field.codec });
     if (!result.ok) {
       return result;
     }
@@ -289,7 +289,9 @@ function createLiveOptions(registry, bindingPath, fields) {
 }
 
 function pickStaticOptions(defaults, liveKeys) {
-  if (!defaults) return {};
+  if (!defaults) {
+    return {};
+  }
   const staticOptions = {};
   for (const [key, value] of Object.entries(defaults)) {
     if (!liveKeys.includes(key)) {
@@ -364,6 +366,82 @@ function buildPolicyFromNode(node, registry, basePath) {
     default:
       throw new Error(`Unsupported live policy kind: ${node.kind}`);
   }
+}
+
+function resolveBindingInfo(node, bindingNames) {
+  const spec = POLICY_SPECS[node.kind];
+  if (!spec) {
+    return errorResult(new ValidationError('Unsupported live policy kind.', { kind: node.kind }));
+  }
+
+  const bindingError = validateBinding(node.binding);
+  if (bindingError) {
+    return errorResult(bindingError);
+  }
+
+  const normalizedBinding = normalizeBinding(node.binding);
+  if (bindingNames.has(normalizedBinding)) {
+    return errorResult(
+      new ValidationError('Duplicate live policy binding.', { binding: normalizedBinding })
+    );
+  }
+  bindingNames.add(normalizedBinding);
+
+  const defaults = node.defaults ?? {};
+  if (defaults === null || typeof defaults !== 'object') {
+    return errorResult(
+      new ValidationError('Live policy defaults must be an object.', {
+        binding: normalizedBinding,
+      })
+    );
+  }
+
+  return okResult({ spec, normalizedBinding, defaults });
+}
+
+function ensureLiveBindings({ registry, nodes, basePath }) {
+  const bindings = [];
+  const bindingNames = new Set();
+
+  for (const node of nodes) {
+    if (node.kind === 'static') {
+      continue;
+    }
+
+    const infoResult = resolveBindingInfo(node, bindingNames);
+    if (!infoResult.ok) {
+      return infoResult;
+    }
+
+    const { spec, normalizedBinding, defaults } = infoResult.data;
+    const bindingPath = joinPath(basePath, normalizedBinding);
+    const result = ensureEntries({
+      registry,
+      bindingPath,
+      fields: spec.fields,
+      defaults,
+    });
+    if (!result.ok) {
+      return result;
+    }
+
+    bindings.push({
+      binding: normalizedBinding,
+      kind: node.kind,
+      path: bindingPath,
+    });
+  }
+
+  return okResult({ bindings });
+}
+
+function buildPolicyStack(nodes, registry, basePath) {
+  let policy;
+  for (const node of nodes) {
+    const nodePolicy = buildPolicyFromNode(node, registry, basePath);
+    policy = policy ? policy.wrap(nodePolicy) : nodePolicy;
+  }
+  return policy;
 }
 
 /**
@@ -449,6 +527,17 @@ export class LivePolicyPlan {
   }
 }
 
+function validatePlan(plan) {
+  if (!(plan instanceof LivePolicyPlan)) {
+    return errorResult(new ValidationError('LivePolicyPlan instance required.'));
+  }
+  const nodes = plan.nodes;
+  if (nodes.length === 0) {
+    return errorResult(new ValidationError('LivePolicyPlan cannot be empty.'));
+  }
+  return okResult({ nodes });
+}
+
 /**
  * Control plane orchestrator for live policy bindings.
  */
@@ -470,8 +559,9 @@ export class ControlPlane {
    * @returns {{ ok: true, data: { policy: CorePolicy, bindings: Array<{ binding: string, kind: string, path: string }>, paths: string[] } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
    */
   registerLivePolicy(plan, basePath) {
-    if (!(plan instanceof LivePolicyPlan)) {
-      return errorResult(new ValidationError('LivePolicyPlan instance required.'));
+    const planResult = validatePlan(plan);
+    if (!planResult.ok) {
+      return planResult;
     }
 
     const pathError = validatePath(basePath);
@@ -480,66 +570,17 @@ export class ControlPlane {
     }
     const normalizedPath = normalizePath(basePath);
 
-    const nodes = plan.nodes;
-    if (nodes.length === 0) {
-      return errorResult(new ValidationError('LivePolicyPlan cannot be empty.'));
+    const bindingsResult = ensureLiveBindings({
+      registry: this.#registry,
+      nodes: planResult.data.nodes,
+      basePath: normalizedPath,
+    });
+    if (!bindingsResult.ok) {
+      return bindingsResult;
     }
 
-    const bindings = [];
-    const bindingNames = new Set();
-
-    for (const node of nodes) {
-      if (node.kind === 'static') {
-        continue;
-      }
-
-      const spec = POLICY_SPECS[node.kind];
-      if (!spec) {
-        return errorResult(
-          new ValidationError('Unsupported live policy kind.', { kind: node.kind })
-        );
-      }
-
-      const bindingError = validateBinding(node.binding);
-      if (bindingError) {
-        return errorResult(bindingError);
-      }
-
-      const normalizedBinding = normalizeBinding(node.binding);
-      if (bindingNames.has(normalizedBinding)) {
-        return errorResult(
-          new ValidationError('Duplicate live policy binding.', { binding: normalizedBinding })
-        );
-      }
-      bindingNames.add(normalizedBinding);
-
-      const bindingPath = joinPath(normalizedPath, normalizedBinding);
-      const defaults = node.defaults ?? {};
-      if (defaults === null || typeof defaults !== 'object') {
-        return errorResult(
-          new ValidationError('Live policy defaults must be an object.', {
-            binding: normalizedBinding,
-          })
-        );
-      }
-
-      const result = ensureEntries(this.#registry, bindingPath, spec.fields, defaults);
-      if (!result.ok) {
-        return result;
-      }
-
-      bindings.push({
-        binding: normalizedBinding,
-        kind: node.kind,
-        path: bindingPath,
-      });
-    }
-
-    let policy;
-    for (const node of nodes) {
-      const nodePolicy = buildPolicyFromNode(node, this.#registry, normalizedPath);
-      policy = policy ? policy.wrap(nodePolicy) : nodePolicy;
-    }
+    const policy = buildPolicyStack(planResult.data.nodes, this.#registry, normalizedPath);
+    const { bindings } = bindingsResult.data;
 
     return okResult({
       policy,

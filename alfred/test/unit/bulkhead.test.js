@@ -125,7 +125,7 @@ describe('bulkhead', () => {
   });
 
   it('applies queue limit updates only to new enqueues', async () => {
-    let limit = 1;
+    const limit = 1;
     let queueLimit = 2;
     const policy = bulkhead({ limit: () => limit, queueLimit: () => queueLimit });
 
