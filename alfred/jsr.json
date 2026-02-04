@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/alfred",
-  "version": "0.8.1",
+  "version": "0.8.2",
   "description": "Production-grade resilience patterns for async ops: retry/backoff+jitter, circuit breaker, bulkhead, timeout.",
   "license": "Apache-2.0",
   "exports": {
