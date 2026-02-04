@@ -21,6 +21,25 @@ function fail(message) {
   process.exit(1);
 }
 
+function redactSensitive(value) {
+  if (Array.isArray(value)) {
+    return value.map((entry) => redactSensitive(entry));
+  }
+  if (!value || typeof value !== 'object') {
+    return value;
+  }
+
+  const redacted = {};
+  for (const [key, entry] of Object.entries(value)) {
+    if (/auth|token|password/i.test(key)) {
+      redacted[key] = '[REDACTED]';
+    } else {
+      redacted[key] = redactSensitive(entry);
+    }
+  }
+  return redacted;
+}
+
 function parseArgs(argv) {
   const options = { id: undefined, auth: undefined };
   const positionals = [];
@@ -110,7 +129,8 @@ const encoded = encodeCommandEnvelope(envelope);
 if (!encoded.ok) {
   process.stderr.write(`${encoded.error.code}: ${encoded.error.message}\n`);
   if (encoded.error.details) {
-    process.stderr.write(`${JSON.stringify(encoded.error.details, null, 2)}\n`);
+    const redacted = redactSensitive(encoded.error.details);
+    process.stderr.write(`${JSON.stringify(redacted, null, 2)}\n`);
   }
   process.exit(1);
 }
