@@ -17,15 +17,22 @@ run('node', [rootPath('scripts/release/preflight.mjs')]);
 const packageDirs = getWorkspacePackageDirs();
 
 const npmToken = process.env.NODE_AUTH_TOKEN || process.env.NPM_TOKEN;
+const useOidc = process.env.GITHUB_ACTIONS === 'true';
 
-if (!npmToken) {
-  console.log('Skipping npm publish (NODE_AUTH_TOKEN/NPM_TOKEN not set).');
+if (!useOidc && !npmToken) {
+  console.log('Skipping npm publish (no token and not running in GitHub Actions).');
 } else {
   for (const dir of packageDirs) {
     const pkg = readJson(path.join(dir, 'package.json'));
     if (pkg.private) {
       continue;
     }
+
+    if (useOidc) {
+      run('npm', ['publish', '--access', 'public', '--provenance'], { cwd: dir });
+      continue;
+    }
+
     run('pnpm', ['publish', '--access', 'public', '--no-git-checks'], { cwd: dir });
   }
 }

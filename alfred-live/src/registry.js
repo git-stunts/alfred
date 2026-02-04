@@ -133,6 +133,11 @@ function createSnapshot(path, entry) {
   }
 }
 
+/**
+ * Registry of live configuration entries.
+ *
+ * Stores path -> Adaptive + codec mappings and provides typed read/write helpers.
+ */
 export class ConfigRegistry {
   #entries;
 
@@ -140,6 +145,15 @@ export class ConfigRegistry {
     this.#entries = new Map();
   }
 
+  /**
+   * Register a new config entry.
+   *
+   * @template T
+   * @param {string} path - Slash-delimited path (e.g. "bulkhead/limit").
+   * @param {{ get(): T, set(value: T): void, update(updater: (current: T) => T): void, version: number, updatedAt: number }} adaptive
+   * @param {{ parse(input: string): T, format(value: T): string }} codec
+   * @returns {{ ok: true, data: { path: string } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+   */
   register(path, adaptive, codec) {
     const pathError = validatePath(path, false);
     if (pathError) {
@@ -169,6 +183,12 @@ export class ConfigRegistry {
     return okResult({ path });
   }
 
+  /**
+   * List registered keys. Supports path-style prefix matching.
+   *
+   * @param {string} [prefix]
+   * @returns {{ ok: true, data: string[] } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+   */
   keys(prefix) {
     const hasPrefix = prefix !== undefined && prefix !== null && prefix !== '';
 
@@ -187,6 +207,12 @@ export class ConfigRegistry {
     return okResult(keys);
   }
 
+  /**
+   * Read a config entry snapshot.
+   *
+   * @param {string} path
+   * @returns {{ ok: true, data: { path: string, value: unknown, formatted: string, version: number, updatedAt: number } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+   */
   read(path) {
     const pathError = validatePath(path, false);
     if (pathError) {
@@ -201,6 +227,13 @@ export class ConfigRegistry {
     return createSnapshot(path, entry);
   }
 
+  /**
+   * Parse and apply a new value to a config entry.
+   *
+   * @param {string} path
+   * @param {string} valueString
+   * @returns {{ ok: true, data: { path: string, value: unknown, formatted: string, version: number, updatedAt: number } } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+   */
   write(path, valueString) {
     const pathError = validatePath(path, false);
     if (pathError) {
