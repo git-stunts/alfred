@@ -1,8 +1,14 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import { Policy, TimeoutError } from '@git-stunts/alfred';
 import { getWorkspacePackageDirs, readJson, rootPath } from './workspace.mjs';
+
+class TimeoutError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'TimeoutError';
+  }
+}
 
 function run(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, { stdio: 'inherit', ...options });
@@ -53,13 +59,22 @@ function runAsync(cmd, args, options = {}) {
 }
 
 async function runWithTimeout(cmd, args, { timeoutMs, label, ...options }) {
-  const policy = Policy.timeout(timeoutMs, {
-    onTimeout: () => {
-      console.error(`Command timed out after ${timeoutMs}ms: ${label ?? cmd}`);
-    },
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => {
+    console.error(`Command timed out after ${timeoutMs}ms: ${label ?? cmd}`);
+    controller.abort();
+  }, timeoutMs);
 
-  return policy.execute((signal) => runAsync(cmd, args, { ...options, signal }));
+  try {
+    await runAsync(cmd, args, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new TimeoutError(`Command timed out after ${timeoutMs}ms: ${label ?? cmd}`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function main() {
