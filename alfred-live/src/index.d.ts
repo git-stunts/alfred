@@ -58,6 +58,9 @@ export interface CommandAuditEvent {
   cmd?: string;
   args?: unknown;
   auth?: string;
+  /**
+   * Raw payload (only included when `includeRaw` is enabled).
+   */
   raw?: unknown;
   ok?: boolean;
   error?: ErrorShape;
@@ -406,6 +409,9 @@ export function executeCommandLine(
   line: string,
   options?: {
     fallbackId?: string;
+    /**
+     * Include raw payloads in audit events (disabled by default).
+     */
     includeRaw?: boolean;
     audit?: CommandAuditSink;
     auth?: CommandAuthorizer;

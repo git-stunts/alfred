@@ -116,7 +116,7 @@ function normalizeEnvelope(envelope) {
  * Build an audit preview for a raw payload.
  * @param {unknown} payload
  * @param {string} fallbackId
- * @param {boolean} includeRaw
+ * @param {boolean} includeRaw - When true, audit events include the raw payload.
  * @returns {{ id: string, cmd?: string, args?: unknown, auth?: string, raw?: unknown, includeRaw: boolean }}
  */
 function buildAuditPreview(payload, fallbackId, includeRaw = false) {
@@ -485,6 +485,7 @@ export function executeCommandEnvelope(router, envelope) {
  * @param {import('./router.js').CommandRouter} router
  * @param {string} line
  * @param {{ fallbackId?: string, includeRaw?: boolean, audit?: { record(event: import('./index.d.ts').CommandAuditEvent): void }, auth?: { authorize(context: import('./index.d.ts').CommandAuthContext): { ok: true, data: unknown } | { ok: false, error: { code: string, message: string, details?: unknown } } } }} [options]
+ * @param {boolean} [options.includeRaw] - Include raw payloads in audit events (disabled by default).
  * @returns {{ ok: true, data: string } | { ok: false, error: { code: string, message: string, details?: unknown } }}
  */
 export function executeCommandLine(router, line, options = {}) {

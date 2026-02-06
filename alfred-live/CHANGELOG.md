@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Audit-first command pipeline with attempt/result hooks.
 - Auth provider hooks with allow-all and opaque-token helpers.
 - Audit sinks for console and in-memory usage.
+- Optional `includeRaw` flag to attach raw payloads to audit events.
 
 ## [0.10.1] - 2026-02-06
 

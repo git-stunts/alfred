@@ -42,6 +42,9 @@ export class InMemoryAuditSink {
     return [...this.#events];
   }
 
+  /**
+   * Clear all captured audit events.
+   */
   clear() {
     this.#events.length = 0;
   }
