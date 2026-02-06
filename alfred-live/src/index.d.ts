@@ -404,7 +404,12 @@ export function executeCommandEnvelope(
 export function executeCommandLine(
   router: CommandRouter,
   line: string,
-  options?: { fallbackId?: string; audit?: CommandAuditSink; auth?: CommandAuthorizer }
+  options?: {
+    fallbackId?: string;
+    includeRaw?: boolean;
+    audit?: CommandAuditSink;
+    auth?: CommandAuthorizer;
+  }
 ): Result<string>;
 
 /**

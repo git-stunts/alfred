@@ -1,3 +1,8 @@
+/**
+ * Redact sensitive fields recursively.
+ * @param {unknown} value
+ * @returns {unknown}
+ */
 function redactSensitive(value) {
   if (Array.isArray(value)) {
     return value.map((entry) => redactSensitive(entry));
@@ -23,10 +28,16 @@ function redactSensitive(value) {
 export class InMemoryAuditSink {
   #events = [];
 
+  /**
+   * @param {import('./index.d.ts').CommandAuditEvent} event
+   */
   record(event) {
     this.#events.push(event);
   }
 
+  /**
+   * @returns {import('./index.d.ts').CommandAuditEvent[]}
+   */
   entries() {
     return [...this.#events];
   }
@@ -42,10 +53,16 @@ export class InMemoryAuditSink {
 export class ConsoleAuditSink {
   #logger;
 
+  /**
+   * @param {{ log: (...args: unknown[]) => void }} [logger]
+   */
   constructor(logger = console) {
     this.#logger = logger;
   }
 
+  /**
+   * @param {import('./index.d.ts').CommandAuditEvent} event
+   */
   record(event) {
     const payload = redactSensitive(event);
     this.#logger.log('[alfred-live.audit]', payload);
@@ -58,13 +75,23 @@ export class ConsoleAuditSink {
 export class MultiAuditSink {
   #sinks;
 
+  /**
+   * @param {Array<{ record(event: import('./index.d.ts').CommandAuditEvent): void }>} sinks
+   */
   constructor(sinks) {
     this.#sinks = Array.isArray(sinks) ? sinks : [];
   }
 
+  /**
+   * @param {import('./index.d.ts').CommandAuditEvent} event
+   */
   record(event) {
     for (const sink of this.#sinks) {
-      sink?.record?.(event);
+      try {
+        sink?.record?.(event);
+      } catch {
+        // Swallow to avoid one sink breaking fan-out.
+      }
     }
   }
 }

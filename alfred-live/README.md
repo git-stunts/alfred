@@ -135,6 +135,8 @@ console.log(resultLine.data);
 console.log(audit.entries());
 ```
 
+Pass `{ includeRaw: true }` to `executeCommandLine()` if you want audit events to include raw payloads.
+
 ## CLI (`alfredctl`)
 
 `alfredctl` emits JSONL commands to stdout. Pipe its output into your control
