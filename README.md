@@ -24,7 +24,7 @@ Alfred is a **policy engine** for async resilience: composable, observable, test
 
 ## Latest Release
 
-`v0.10.0` (2026-02-04) — JSONL command channel + `alfredctl` CLI for the control plane.
+`v0.10.1` (2026-02-06) — JSONL command channel test coverage improvements.
 
 ## Package Badges
 

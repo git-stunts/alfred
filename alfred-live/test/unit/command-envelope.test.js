@@ -13,6 +13,38 @@ function parseJsonLine(line) {
   return JSON.parse(line);
 }
 
+function mulberry32(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state += 0x6d2b79f5;
+    let result = Math.imul(state ^ (state >>> 15), 1 | state);
+    result ^= result + Math.imul(result ^ (result >>> 7), 61 | result);
+    return ((result ^ (result >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+function randomInt(rand, min, max) {
+  return Math.floor(rand() * (max - min + 1)) + min;
+}
+
+function randomString(rand, length) {
+  const alphabet = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_/:.*';
+  let value = '';
+  for (let i = 0; i < length; i += 1) {
+    value += alphabet[randomInt(rand, 0, alphabet.length - 1)];
+  }
+  return value;
+}
+
+function randomPath(rand) {
+  const segments = randomInt(rand, 1, 4);
+  const parts = [];
+  for (let i = 0; i < segments; i += 1) {
+    parts.push(randomString(rand, randomInt(rand, 1, 8)));
+  }
+  return parts.join('/');
+}
+
 describe('command envelope', () => {
   it('round-trips encode/decode', () => {
     const envelope = {
@@ -85,5 +117,87 @@ describe('command envelope', () => {
     expect(result.id).toBe('unknown');
     expect(result.ok).toBe(false);
     expect(result.error.code).toBe('INVALID_COMMAND');
+  });
+
+  it('handles randomized JSONL and junk input without throwing', () => {
+    const registry = new ConfigRegistry();
+    const counter = new Adaptive(1);
+    registry.register('retry/count', counter, {
+      parse: (value) => {
+        const parsed = Number(value);
+        if (!Number.isFinite(parsed)) {
+          throw new Error('retry/count must be numeric');
+        }
+        return parsed;
+      },
+      format: (value) => value.toString(),
+    });
+    const router = new CommandRouter(registry);
+
+    const rand = mulberry32(0xade1f00d);
+    const generators = [
+      (i) =>
+        JSON.stringify({
+          id: `cmd-${i}`,
+          cmd: 'read_config',
+          args: { path: rand() > 0.6 ? 'retry/count' : randomPath(rand) },
+        }),
+      (i) =>
+        JSON.stringify({
+          id: `cmd-${i}`,
+          cmd: 'write_config',
+          args: { path: rand() > 0.6 ? 'retry/count' : randomPath(rand), value: '5' },
+        }),
+      (i) =>
+        JSON.stringify({
+          id: `cmd-${i}`,
+          cmd: 'list_config',
+          args: rand() > 0.5 ? { prefix: randomPath(rand) } : {},
+        }),
+      (_i) =>
+        JSON.stringify({
+          id: '',
+          cmd: 'read_config',
+          args: { path: randomPath(rand) },
+        }),
+      (i) =>
+        JSON.stringify({
+          id: `cmd-${i}`,
+          cmd: 'read_config',
+          args: { path: 123 },
+        }),
+      (i) =>
+        JSON.stringify({
+          id: `cmd-${i}`,
+          cmd: 'read_config',
+          args: { path: 'retry/count', extra: true },
+        }),
+      (i) =>
+        JSON.stringify({
+          id: `cmd-${i}`,
+          cmd: 'unknown',
+          args: {},
+        }),
+      () => JSON.stringify({ foo: 'bar' }),
+      () => JSON.stringify([1, 2, 3]),
+      () => JSON.stringify(42),
+      () => '{ "bad": ',
+      () => '{',
+      () => 'not-json',
+      () => '',
+      () => '   ',
+    ];
+
+    for (let i = 0; i < 1000; i += 1) {
+      const generator = generators[randomInt(rand, 0, generators.length - 1)];
+      const line = generator(i);
+      const resultLine = executeCommandLine(router, line);
+      expect(resultLine.ok).toBe(true);
+      if (!resultLine.ok) continue;
+      const result = parseJsonLine(resultLine.data);
+      expect(typeof result.id).toBe('string');
+      expect(result.id.length).toBeGreaterThan(0);
+      expect(typeof result.ok).toBe('boolean');
+    }
   });
 });
