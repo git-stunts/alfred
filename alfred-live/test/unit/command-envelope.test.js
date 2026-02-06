@@ -154,7 +154,7 @@ describe('command envelope', () => {
           cmd: 'list_config',
           args: rand() > 0.5 ? { prefix: randomPath(rand) } : {},
         }),
-      (i) =>
+      (_i) =>
         JSON.stringify({
           id: '',
           cmd: 'read_config',
