@@ -7,6 +7,7 @@ export const ErrorCode = Object.freeze({
   VALIDATION_FAILED: 'VALIDATION_FAILED',
   ALREADY_REGISTERED: 'ALREADY_REGISTERED',
   INVALID_COMMAND: 'INVALID_COMMAND',
+  AUTH_DENIED: 'AUTH_DENIED',
   INVALID_CODEC: 'INVALID_CODEC',
   INVALID_ADAPTIVE: 'INVALID_ADAPTIVE',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
@@ -71,6 +72,15 @@ export class AlreadyRegisteredError extends AlfredLiveError {
 export class InvalidCommandError extends AlfredLiveError {
   constructor(message = 'Invalid command.', details) {
     super(ErrorCode.INVALID_COMMAND, message, details);
+  }
+}
+
+/**
+ * Error for authorization failures.
+ */
+export class AuthorizationError extends AlfredLiveError {
+  constructor(message = 'Authorization denied.', details) {
+    super(ErrorCode.AUTH_DENIED, message, details);
   }
 }
 

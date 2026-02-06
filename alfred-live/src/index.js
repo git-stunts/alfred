@@ -12,6 +12,8 @@
 export { Adaptive } from './adaptive.js';
 export { ConfigRegistry } from './registry.js';
 export { CommandRouter } from './router.js';
+export { InMemoryAuditSink, ConsoleAuditSink, MultiAuditSink } from './audit.js';
+export { allowAllAuth, opaqueTokenAuth } from './auth.js';
 export {
   buildResultEnvelope,
   decodeCommandEnvelope,
@@ -30,6 +32,7 @@ export {
   ValidationError,
   AlreadyRegisteredError,
   InvalidCommandError,
+  AuthorizationError,
   InvalidCodecError,
   InvalidAdaptiveError,
 } from './errors.js';
