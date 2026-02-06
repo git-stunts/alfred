@@ -5,7 +5,9 @@ import { AuthorizationError, ValidationError, errorResult, okResult } from './er
  * @returns {value is Iterable<unknown>}
  */
 function isIterable(value) {
-  if (!value) return false;
+  if (!value) {
+    return false;
+  }
   return typeof value[Symbol.iterator] === 'function';
 }
 
