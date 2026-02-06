@@ -181,6 +181,29 @@ function authorizeCommand(auth, context) {
   return result;
 }
 
+function buildAuthContext(preview) {
+  return {
+    id: preview.id,
+    cmd: preview.cmd,
+    args: preview.args,
+    auth: preview.auth,
+    raw: preview.raw,
+  };
+}
+
+function encodeAuditedResult(preview, audit, resultEnvelope) {
+  const resultAudit = recordAuditEvent(audit, buildAuditEvent('result', preview, resultEnvelope));
+  if (!resultAudit.ok) {
+    return encodeResultEnvelope(buildResultEnvelope(preview.id, resultAudit));
+  }
+  return encodeResultEnvelope(resultEnvelope);
+}
+
+function encodeFailure(preview, audit, result) {
+  const resultEnvelope = buildResultEnvelope(preview.id, result);
+  return encodeAuditedResult(preview, audit, resultEnvelope);
+}
+
 /**
  * Validate a command envelope.
  * @param {unknown} envelope
@@ -419,57 +442,19 @@ export function executeCommandLine(router, line, options = {}) {
   }
 
   if (!parsed.ok) {
-    const resultEnvelope = buildResultEnvelope(preview.id, parsed);
-    const resultAudit = recordAuditEvent(
-      options.audit,
-      buildAuditEvent('result', preview, resultEnvelope)
-    );
-    if (!resultAudit.ok) {
-      return encodeResultEnvelope(buildResultEnvelope(preview.id, resultAudit));
-    }
-    return encodeResultEnvelope(resultEnvelope);
+    return encodeFailure(preview, options.audit, parsed);
   }
 
-  const authContext = {
-    id: preview.id,
-    cmd: preview.cmd,
-    args: preview.args,
-    auth: preview.auth,
-    raw: preview.raw,
-  };
-  const authResult = authorizeCommand(options.auth, authContext);
+  const authResult = authorizeCommand(options.auth, buildAuthContext(preview));
   if (!authResult.ok) {
-    const resultEnvelope = buildResultEnvelope(preview.id, authResult);
-    const resultAudit = recordAuditEvent(
-      options.audit,
-      buildAuditEvent('result', preview, resultEnvelope)
-    );
-    if (!resultAudit.ok) {
-      return encodeResultEnvelope(buildResultEnvelope(preview.id, resultAudit));
-    }
-    return encodeResultEnvelope(resultEnvelope);
+    return encodeFailure(preview, options.audit, authResult);
   }
 
   const decoded = validateCommandEnvelope(parsed.data);
   if (!decoded.ok) {
-    const resultEnvelope = buildResultEnvelope(preview.id, decoded);
-    const resultAudit = recordAuditEvent(
-      options.audit,
-      buildAuditEvent('result', preview, resultEnvelope)
-    );
-    if (!resultAudit.ok) {
-      return encodeResultEnvelope(buildResultEnvelope(preview.id, resultAudit));
-    }
-    return encodeResultEnvelope(resultEnvelope);
+    return encodeFailure(preview, options.audit, decoded);
   }
 
   const resultEnvelope = executeCommandEnvelope(router, decoded.data);
-  const resultAudit = recordAuditEvent(
-    options.audit,
-    buildAuditEvent('result', preview, resultEnvelope)
-  );
-  if (!resultAudit.ok) {
-    return encodeResultEnvelope(buildResultEnvelope(preview.id, resultAudit));
-  }
-  return encodeResultEnvelope(resultEnvelope);
+  return encodeAuditedResult(preview, options.audit, resultEnvelope);
 }
