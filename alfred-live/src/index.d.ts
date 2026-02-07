@@ -18,6 +18,7 @@ export const ErrorCode: {
   readonly VALIDATION_FAILED: 'VALIDATION_FAILED';
   readonly ALREADY_REGISTERED: 'ALREADY_REGISTERED';
   readonly INVALID_COMMAND: 'INVALID_COMMAND';
+  readonly AUTH_DENIED: 'AUTH_DENIED';
   readonly INVALID_CODEC: 'INVALID_CODEC';
   readonly INVALID_ADAPTIVE: 'INVALID_ADAPTIVE';
   readonly INTERNAL_ERROR: 'INTERNAL_ERROR';
@@ -41,6 +42,89 @@ export interface ErrorShape {
  * Result envelope for control-plane operations.
  */
 export type Result<T> = { ok: true; data: T } | { ok: false; error: ErrorShape };
+
+/**
+ * Audit phase for command events.
+ */
+export type AuditPhase = 'attempt' | 'result';
+
+/**
+ * Audit event emitted for command attempts and results.
+ */
+export interface CommandAuditEvent {
+  phase: AuditPhase;
+  timestamp: number;
+  id: string;
+  cmd?: string;
+  args?: unknown;
+  auth?: string;
+  /**
+   * Raw payload (only included when `includeRaw` is enabled).
+   */
+  raw?: unknown;
+  ok?: boolean;
+  error?: ErrorShape;
+}
+
+/**
+ * Audit sink interface.
+ */
+export interface CommandAuditSink {
+  record(event: CommandAuditEvent): void;
+}
+
+/**
+ * In-memory audit sink for commands.
+ */
+export class InMemoryAuditSink implements CommandAuditSink {
+  record(event: CommandAuditEvent): void;
+  entries(): CommandAuditEvent[];
+  clear(): void;
+}
+
+/**
+ * Console audit sink for commands.
+ */
+export class ConsoleAuditSink implements CommandAuditSink {
+  constructor(logger?: { log: (...args: unknown[]) => void });
+  record(event: CommandAuditEvent): void;
+}
+
+/**
+ * Fan-out audit sink for multiple destinations.
+ */
+export class MultiAuditSink implements CommandAuditSink {
+  constructor(sinks: CommandAuditSink[]);
+  record(event: CommandAuditEvent): void;
+}
+
+/**
+ * Context passed to auth providers.
+ */
+export interface CommandAuthContext {
+  id: string;
+  cmd?: string;
+  args?: unknown;
+  auth?: string;
+  raw?: unknown;
+}
+
+/**
+ * Auth provider interface.
+ */
+export interface CommandAuthorizer {
+  authorize(context: CommandAuthContext): Result<unknown>;
+}
+
+/**
+ * Auth provider that always allows commands.
+ */
+export function allowAllAuth(): CommandAuthorizer;
+
+/**
+ * Auth provider that checks for a matching opaque token string.
+ */
+export function opaqueTokenAuth(tokens: Iterable<string> | string): CommandAuthorizer;
 
 /**
  * Base error type for Alfred Live failures.
@@ -83,6 +167,13 @@ export class AlreadyRegisteredError extends AlfredLiveError {
  * Error for malformed commands.
  */
 export class InvalidCommandError extends AlfredLiveError {
+  constructor(message?: string, details?: unknown);
+}
+
+/**
+ * Error for authorization failures.
+ */
+export class AuthorizationError extends AlfredLiveError {
   constructor(message?: string, details?: unknown);
 }
 
@@ -316,7 +407,15 @@ export function executeCommandEnvelope(
 export function executeCommandLine(
   router: CommandRouter,
   line: string,
-  options?: { fallbackId?: string }
+  options?: {
+    fallbackId?: string;
+    /**
+     * Include raw payloads in audit events (disabled by default).
+     */
+    includeRaw?: boolean;
+    audit?: CommandAuditSink;
+    auth?: CommandAuthorizer;
+  }
 ): Result<string>;
 
 /**

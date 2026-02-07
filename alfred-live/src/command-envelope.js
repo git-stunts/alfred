@@ -1,4 +1,5 @@
 import {
+  AlfredLiveError,
   ErrorCode,
   InvalidCommandError,
   ValidationError,
@@ -23,6 +24,38 @@ const COMMANDS = Object.freeze({
 
 function isPlainObject(value) {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Normalize an envelope id.
+ * @param {unknown} value
+ * @param {string} fallbackId
+ * @returns {string}
+ */
+function normalizeId(value, fallbackId) {
+  if (typeof value === 'string' && value.trim().length > 0) {
+    return value;
+  }
+  return fallbackId;
+}
+
+/**
+ * Parse a JSONL command line.
+ * @param {string} line
+ * @returns {{ ok: true, data: unknown } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+ */
+function parseCommandLine(line) {
+  if (typeof line !== 'string' || line.trim().length === 0) {
+    return errorResult(new InvalidCommandError('Command line must be a JSON object.'));
+  }
+
+  try {
+    return okResult(JSON.parse(line));
+  } catch (error) {
+    return errorResult(
+      new InvalidCommandError('Command line is not valid JSON.', { error: String(error) })
+    );
+  }
 }
 
 function hasOnlyKeys(value, allowed) {
@@ -77,6 +110,154 @@ function normalizeEnvelope(envelope) {
     args: envelope.args ?? {},
     auth: envelope.auth,
   };
+}
+
+/**
+ * Build an audit preview for a raw payload.
+ * @param {unknown} payload
+ * @param {string} fallbackId
+ * @param {boolean} includeRaw - When true, audit events include the raw payload.
+ * @returns {{ id: string, cmd?: string, args?: unknown, auth?: string, raw?: unknown, includeRaw: boolean }}
+ */
+function buildAuditPreview(payload, fallbackId, includeRaw = false) {
+  if (!isPlainObject(payload)) {
+    return { id: fallbackId, raw: payload, includeRaw: Boolean(includeRaw) };
+  }
+
+  return {
+    id: normalizeId(payload.id, fallbackId),
+    cmd: typeof payload.cmd === 'string' ? payload.cmd : undefined,
+    args: payload.args,
+    auth: typeof payload.auth === 'string' ? payload.auth : undefined,
+    raw: payload,
+    includeRaw: Boolean(includeRaw),
+  };
+}
+
+/**
+ * Build an audit event.
+ * @param {'attempt' | 'result'} phase
+ * @param {{ id: string, cmd?: string, args?: unknown, auth?: string, raw?: unknown, includeRaw?: boolean }} preview
+ * @param {{ ok: boolean, error?: { code: string, message: string, details?: unknown } }} [result]
+ * @returns {import('./index.d.ts').CommandAuditEvent}
+ */
+function buildAuditEvent(phase, preview, result) {
+  const event = {
+    phase,
+    timestamp: Date.now(),
+    id: preview.id,
+    cmd: preview.cmd,
+    args: preview.args,
+    auth: preview.auth,
+  };
+
+  if (preview.includeRaw) {
+    event.raw = preview.raw;
+  }
+
+  if (result) {
+    event.ok = result.ok;
+    if (!result.ok) {
+      event.error = result.error;
+    }
+  }
+
+  return event;
+}
+
+/**
+ * Record an audit event.
+ * @param {{ record(event: import('./index.d.ts').CommandAuditEvent): void } | undefined} audit
+ * @param {import('./index.d.ts').CommandAuditEvent} event
+ * @returns {{ ok: true, data: null } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+ */
+function recordAuditEvent(audit, event) {
+  if (!audit) {
+    return okResult(null);
+  }
+  if (typeof audit.record !== 'function') {
+    return errorResult(new ValidationError('Audit sink must implement record().'));
+  }
+  try {
+    audit.record(event);
+  } catch (error) {
+    return errorResult(
+      new AlfredLiveError(ErrorCode.INTERNAL_ERROR, 'Audit sink failed.', {
+        error: String(error),
+      })
+    );
+  }
+  return okResult(null);
+}
+
+/**
+ * Authorize a command execution.
+ * @param {{ authorize(context: import('./index.d.ts').CommandAuthContext): { ok: true, data: unknown } | { ok: false, error: { code: string, message: string, details?: unknown } } } | undefined} auth
+ * @param {import('./index.d.ts').CommandAuthContext} context
+ * @returns {{ ok: true, data: unknown } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+ */
+function authorizeCommand(auth, context) {
+  if (!auth) {
+    return okResult(null);
+  }
+  if (typeof auth.authorize !== 'function') {
+    return errorResult(new ValidationError('Auth provider must implement authorize().'));
+  }
+
+  let result;
+  try {
+    result = auth.authorize(context);
+  } catch (error) {
+    return errorResult(
+      new AlfredLiveError(ErrorCode.INTERNAL_ERROR, 'Auth provider threw.', {
+        error: String(error),
+      })
+    );
+  }
+
+  if (!result || typeof result !== 'object' || typeof result.ok !== 'boolean') {
+    return errorResult(new ValidationError('Auth provider returned an invalid result.'));
+  }
+
+  return result;
+}
+
+/**
+ * Build an auth context from a preview.
+ * @param {{ id: string, cmd?: string, args?: unknown, auth?: string, raw?: unknown }} preview
+ * @returns {import('./index.d.ts').CommandAuthContext}
+ */
+function buildAuthContext(preview) {
+  const { id, cmd, args, auth, raw } = preview;
+  return { id, cmd, args, auth, raw };
+}
+
+/**
+ * Encode and audit a result envelope.
+ * @param {{ id: string, cmd?: string, args?: unknown, auth?: string, raw?: unknown, includeRaw?: boolean }} preview
+ * @param {{ record(event: import('./index.d.ts').CommandAuditEvent): void } | undefined} audit
+ * @param {import('./index.d.ts').ResultEnvelope} resultEnvelope
+ * @returns {{ ok: true, data: string } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+ */
+function encodeAuditedResult(preview, audit, resultEnvelope) {
+  // Audit failures override the command result to enforce audit-first semantics.
+  const resultAudit = recordAuditEvent(audit, buildAuditEvent('result', preview, resultEnvelope));
+  if (!resultAudit.ok) {
+    return encodeResultEnvelope(buildResultEnvelope(preview.id, resultAudit));
+  }
+  return encodeResultEnvelope(resultEnvelope);
+}
+
+/**
+ * Encode an error result and audit it.
+ * @param {{ id: string, cmd?: string, args?: unknown, auth?: string, raw?: unknown, includeRaw?: boolean }} preview
+ * @param {{ record(event: import('./index.d.ts').CommandAuditEvent): void } | undefined} audit
+ * @param {{ ok: false, error: { code: string, message: string, details?: unknown } }} result
+ * @returns {{ ok: true, data: string } | { ok: false, error: { code: string, message: string, details?: unknown } }}
+ */
+function encodeFailure(preview, audit, result) {
+  const resultEnvelope = buildResultEnvelope(preview.id, result);
+  return encodeAuditedResult(preview, audit, resultEnvelope);
 }
 
 /**
@@ -137,20 +318,11 @@ export function validateCommandEnvelope(envelope) {
  * @returns {{ ok: true, data: import('./index.d.ts').CommandEnvelope } | { ok: false, error: { code: string, message: string, details?: unknown } }}
  */
 export function decodeCommandEnvelope(line) {
-  if (typeof line !== 'string' || line.trim().length === 0) {
-    return errorResult(new InvalidCommandError('Command line must be a JSON object.'));
+  const parsed = parseCommandLine(line);
+  if (!parsed.ok) {
+    return parsed;
   }
-
-  let payload;
-  try {
-    payload = JSON.parse(line);
-  } catch (error) {
-    return errorResult(
-      new InvalidCommandError('Command line is not valid JSON.', { error: String(error) })
-    );
-  }
-
-  return validateCommandEnvelope(payload);
+  return validateCommandEnvelope(parsed.data);
 }
 
 /**
@@ -312,16 +484,34 @@ export function executeCommandEnvelope(router, envelope) {
  * Decode, validate, and execute a JSONL command line.
  * @param {import('./router.js').CommandRouter} router
  * @param {string} line
- * @param {{ fallbackId?: string }} [options]
+ * @param {{ fallbackId?: string, includeRaw?: boolean, audit?: { record(event: import('./index.d.ts').CommandAuditEvent): void }, auth?: { authorize(context: import('./index.d.ts').CommandAuthContext): { ok: true, data: unknown } | { ok: false, error: { code: string, message: string, details?: unknown } } } }} [options]
+ * @param {boolean} [options.includeRaw] - Include raw payloads in audit events (disabled by default).
  * @returns {{ ok: true, data: string } | { ok: false, error: { code: string, message: string, details?: unknown } }}
  */
 export function executeCommandLine(router, line, options = {}) {
   const fallbackId = options.fallbackId ?? 'unknown';
-  const decoded = decodeCommandEnvelope(line);
+  const parsed = parseCommandLine(line);
+  const preview = buildAuditPreview(parsed.ok ? parsed.data : line, fallbackId, options.includeRaw);
+
+  const attemptAudit = recordAuditEvent(options.audit, buildAuditEvent('attempt', preview));
+  if (!attemptAudit.ok) {
+    return encodeResultEnvelope(buildResultEnvelope(preview.id, attemptAudit));
+  }
+
+  if (!parsed.ok) {
+    return encodeFailure(preview, options.audit, parsed);
+  }
+
+  const authResult = authorizeCommand(options.auth, buildAuthContext(preview));
+  if (!authResult.ok) {
+    return encodeFailure(preview, options.audit, authResult);
+  }
+
+  const decoded = validateCommandEnvelope(parsed.data);
   if (!decoded.ok) {
-    return encodeResultEnvelope(buildResultEnvelope(fallbackId, decoded));
+    return encodeFailure(preview, options.audit, decoded);
   }
 
   const resultEnvelope = executeCommandEnvelope(router, decoded.data);
-  return encodeResultEnvelope(resultEnvelope);
+  return encodeAuditedResult(preview, options.audit, resultEnvelope);
 }

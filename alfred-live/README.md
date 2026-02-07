@@ -103,6 +103,40 @@ const outgoing = encodeCommandEnvelope({
 if (outgoing.ok) console.log(outgoing.data);
 ```
 
+## Audit + Auth Hooks
+
+Attach audit and auth hooks when executing JSONL command lines. Audits record
+attempt + result events, and auth runs before validation/execution.
+
+```javascript
+import {
+  CommandRouter,
+  ConfigRegistry,
+  InMemoryAuditSink,
+  opaqueTokenAuth,
+  executeCommandLine,
+} from '@git-stunts/alfred-live';
+
+const registry = new ConfigRegistry();
+const router = new CommandRouter(registry);
+
+const audit = new InMemoryAuditSink();
+const auth = opaqueTokenAuth(['secret-token']);
+
+const line = JSON.stringify({
+  id: 'cmd-1',
+  cmd: 'list_config',
+  args: { prefix: 'retry' },
+  auth: 'secret-token',
+});
+
+const resultLine = executeCommandLine(router, line, { audit, auth });
+console.log(resultLine.data);
+console.log(audit.entries());
+```
+
+Pass `{ includeRaw: true }` to `executeCommandLine()` if you want audit events to include raw payloads.
+
 ## CLI (`alfredctl`)
 
 `alfredctl` emits JSONL commands to stdout. Pipe its output into your control
@@ -175,7 +209,7 @@ registry.write('gateway/api/retry/retries', '5');
 
 ## Status
 
-v0.10.0 control plane primitives implemented:
+v0.10.2 control plane primitives implemented:
 
 - `Adaptive<T>` live values with version + updatedAt.
 - `ConfigRegistry` for typed config and validation.
@@ -183,3 +217,4 @@ v0.10.0 control plane primitives implemented:
 - `LivePolicyPlan` + `ControlPlane.registerLivePolicy` for live policy stacks.
 - Canonical JSONL command envelope + helpers.
 - `alfredctl` CLI for emitting JSONL commands.
+- Audit-first command pipeline + auth hooks.

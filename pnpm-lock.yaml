@@ -29,7 +29,7 @@ importers:
   alfred-live:
     dependencies:
       '@git-stunts/alfred':
-        specifier: 0.10.1
+        specifier: 0.10.2
         version: link:../alfred
     devDependencies:
       '@eslint/js':
