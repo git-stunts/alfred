@@ -416,7 +416,6 @@ export class Policy {
 
 /**
  * System clock using real time.
- * Uses runtime-aware timer management for clean process exits.
  */
 export class SystemClock {
   /** Returns current time in milliseconds since Unix epoch. */
