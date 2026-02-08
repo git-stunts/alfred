@@ -1,6 +1,6 @@
 {
 "name": "@git-stunts/alfred-workspace",
-  "version": "0.0.0",
+  "version": "0.10.3",
   "scripts": {
     "test": "pnpm -r test",
     "lint": "pnpm -r run lint",
