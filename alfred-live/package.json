@@ -1,6 +1,6 @@
 {
   "name": "@git-stunts/alfred-live",
-  "version": "0.10.2",
+  "version": "0.10.3",
   "description": "In-memory control plane for Alfred: adaptive values, config registry, command router.",
   "type": "module",
   "sideEffects": false,
@@ -16,7 +16,7 @@
     "alfredctl": "./bin/alfredctl.js"
   },
   "dependencies": {
-    "@git-stunts/alfred": "0.10.2"
+    "@git-stunts/alfred": "0.10.3"
   },
   "engines": {
     "node": ">=20.0.0"

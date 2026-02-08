@@ -9,7 +9,6 @@
 
 /**
  * System clock using real time.
- * Uses runtime-aware timer management (unref) to allow clean process exits.
  */
 export class SystemClock {
   /**
@@ -22,19 +21,12 @@ export class SystemClock {
 
   /**
    * Sleeps for the specified duration.
-   * Timer is unref'd to prevent blocking process exit.
    * @param {number} ms - Milliseconds to sleep
    * @returns {Promise<void>}
    */
   async sleep(ms) {
     return new Promise((resolve) => {
-      const timer = setTimeout(resolve, ms);
-      if (typeof timer === 'object' && typeof timer.unref === 'function') {
-        timer.unref();
-      } else if (typeof Deno !== 'undefined' && typeof Deno.unrefTimer === 'function') {
-        // Deno returns a number ID
-        Deno.unrefTimer(timer);
-      }
+      setTimeout(resolve, ms);
     });
   }
 }
