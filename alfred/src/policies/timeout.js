@@ -19,6 +19,55 @@ import { resolve } from '../utils/resolvable.js';
  * @property {{ now(): number, sleep(ms: number): Promise<void> }} [clock] - Clock for testing
  */
 
+function rejectWithTimeout(context) {
+  const { controller, clock, isCompleted, onTimeout, reject, startTime, telemetry, timeoutMs } =
+    context;
+
+  if (isCompleted()) {
+    return;
+  }
+
+  controller.abort();
+  const elapsed = clock.now() - startTime;
+
+  notifyTimeout({ elapsed, onTimeout });
+  emitTimeoutTelemetry({ clock, elapsed, telemetry, timeoutMs });
+  reject(new TimeoutError(timeoutMs, elapsed));
+}
+
+function notifyTimeout({ elapsed, onTimeout }) {
+  if (onTimeout) {
+    try {
+      onTimeout(elapsed);
+    } catch {
+      // Timeout side effects must not replace the TimeoutError result.
+    }
+  }
+}
+
+function emitTimeoutTelemetry({ clock, elapsed, telemetry, timeoutMs }) {
+  try {
+    telemetry.emit({
+      type: 'timeout',
+      timestamp: clock.now(),
+      timeout: timeoutMs,
+      elapsed,
+      metrics: { timeouts: 1, failures: 1 },
+    });
+  } catch {
+    // Timeout telemetry must not replace the TimeoutError result.
+  }
+}
+
+function scheduleTimeout(context) {
+  if (context.usesInjectedClock) {
+    context.clock.sleep(context.timeoutMs).then(() => rejectWithTimeout(context));
+    return null;
+  }
+
+  return setTimeout(() => rejectWithTimeout(context), context.timeoutMs);
+}
+
 /**
  * Executes a function with a timeout limit.
  *
@@ -53,35 +102,26 @@ import { resolve } from '../utils/resolvable.js';
  * await clock.advance(5000); // Triggers timeout
  */
 export async function timeout(ms, fn, options = {}) {
-  const { onTimeout, telemetry = new NoopSink(), clock = new SystemClock() } = options;
+  const { onTimeout, telemetry = new NoopSink() } = options;
+  const clock = options.clock || new SystemClock();
   const timeoutMs = resolve(ms);
   const controller = new AbortController();
   const startTime = clock.now();
 
   let completed = false;
+  let timeoutHandle = null;
 
   const timeoutPromise = new Promise((_, reject) => {
-    clock.sleep(timeoutMs).then(() => {
-      if (completed) {
-        return;
-      }
-
-      controller.abort();
-      const elapsed = clock.now() - startTime;
-
-      if (onTimeout) {
-        onTimeout(elapsed);
-      }
-
-      telemetry.emit({
-        type: 'timeout',
-        timestamp: clock.now(),
-        timeout: timeoutMs,
-        elapsed,
-        metrics: { timeouts: 1, failures: 1 },
-      });
-
-      reject(new TimeoutError(timeoutMs, elapsed));
+    timeoutHandle = scheduleTimeout({
+      controller,
+      clock,
+      isCompleted: () => completed,
+      onTimeout,
+      reject,
+      startTime,
+      telemetry,
+      timeoutMs,
+      usesInjectedClock: Boolean(options.clock),
     });
   });
 
@@ -90,11 +130,12 @@ export async function timeout(ms, fn, options = {}) {
     const fnAcceptsSignal = fn.length > 0;
     const operationPromise = fnAcceptsSignal ? fn(controller.signal) : fn();
 
-    const result = await Promise.race([operationPromise, timeoutPromise]);
+    return await Promise.race([operationPromise, timeoutPromise]);
+  } finally {
     completed = true;
-    return result;
-  } catch (error) {
-    completed = true;
-    throw error;
+    if (timeoutHandle !== null) {
+      clearTimeout(timeoutHandle);
+      timeoutHandle = null;
+    }
   }
 }
