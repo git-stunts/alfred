@@ -272,6 +272,19 @@ describe('timeout', () => {
       expect(results).toEqual([0, 1, 2, 3, 4]);
     });
 
+    it('clears the default runtime timer after successful completion', async () => {
+      vi.useFakeTimers();
+
+      try {
+        const result = await timeout(1000, () => Promise.resolve('quick'));
+
+        expect(result).toBe('quick');
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('preserves original error type on failure before timeout', async () => {
       class CustomError extends Error {
         constructor() {
