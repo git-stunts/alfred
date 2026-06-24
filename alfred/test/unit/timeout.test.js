@@ -285,6 +285,19 @@ describe('timeout', () => {
       }
     });
 
+    it('clears the default runtime timer after early rejection', async () => {
+      vi.useFakeTimers();
+
+      try {
+        const failure = new Error('quick failure');
+
+        await expect(timeout(1000, () => Promise.reject(failure))).rejects.toBe(failure);
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
     it('preserves original error type on failure before timeout', async () => {
       class CustomError extends Error {
         constructor() {
@@ -448,6 +461,47 @@ describe('timeout', () => {
 
       await clock.advance(30000);
       expect(clock.pendingCount).toBe(0);
+    });
+
+    it('rejects with TimeoutError when onTimeout throws', async () => {
+      vi.useFakeTimers();
+
+      try {
+        const promise = timeout(50, () => new Promise(() => {}), {
+          onTimeout: () => {
+            throw new Error('callback failed');
+          },
+        });
+        const timeoutExpectation = expect(promise).rejects.toThrow(TimeoutError);
+
+        await vi.advanceTimersByTimeAsync(50);
+
+        await timeoutExpectation;
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('rejects with TimeoutError when telemetry emit throws', async () => {
+      vi.useFakeTimers();
+
+      try {
+        const telemetry = {
+          emit: () => {
+            throw new Error('telemetry failed');
+          },
+        };
+        const promise = timeout(50, () => new Promise(() => {}), { telemetry });
+        const timeoutExpectation = expect(promise).rejects.toThrow(TimeoutError);
+
+        await vi.advanceTimersByTimeAsync(50);
+
+        await timeoutExpectation;
+        expect(vi.getTimerCount()).toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
     });
 
     it('can test race between operation and timeout', async () => {

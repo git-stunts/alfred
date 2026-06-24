@@ -30,19 +30,33 @@ function rejectWithTimeout(context) {
   controller.abort();
   const elapsed = clock.now() - startTime;
 
-  if (onTimeout) {
-    onTimeout(elapsed);
-  }
-
-  telemetry.emit({
-    type: 'timeout',
-    timestamp: clock.now(),
-    timeout: timeoutMs,
-    elapsed,
-    metrics: { timeouts: 1, failures: 1 },
-  });
-
+  notifyTimeout({ elapsed, onTimeout });
+  emitTimeoutTelemetry({ clock, elapsed, telemetry, timeoutMs });
   reject(new TimeoutError(timeoutMs, elapsed));
+}
+
+function notifyTimeout({ elapsed, onTimeout }) {
+  if (onTimeout) {
+    try {
+      onTimeout(elapsed);
+    } catch {
+      // Timeout side effects must not replace the TimeoutError result.
+    }
+  }
+}
+
+function emitTimeoutTelemetry({ clock, elapsed, telemetry, timeoutMs }) {
+  try {
+    telemetry.emit({
+      type: 'timeout',
+      timestamp: clock.now(),
+      timeout: timeoutMs,
+      elapsed,
+      metrics: { timeouts: 1, failures: 1 },
+    });
+  } catch {
+    // Timeout telemetry must not replace the TimeoutError result.
+  }
 }
 
 function scheduleTimeout(context) {
